@@ -50,9 +50,31 @@ Wszystkie biblioteki urzyte w projekcie są częścią standardu POSIX. Implemen
 
 ## Model sterowników urządzeń w jądrze Linux
 
-## Rezerwacja pamięci w jądrze
+Wszystkie urządzenia w systemie linux jak i sterowniki które implementują ich zarządzanie istnieją w jądrze w postaci dokładnie zdefiniowanych struktur, które razem tworzą model sterowników urządzań. W modelu tym ustnieją cztery podstawowe obiekty, również znane jako struktury, bez których żadne urządzenie nie ma prawa istnieć.
 
-## Zabezpieczenia przed paniką jądra
+    * Szyna(Bus) - Szyna to kanał pomiędzy procesorem a urządzeniem lub wieloma urządzeniami. Na potrzeby modelu sterowników urządzeń linux wszystkie urządzenia, bez względu na to czy fizyczne czy wirtualne, muszą przynależeć do odpowiadającej im szyny. Przykładami szyn mogą być szyny PCI, USB czy I2C. Model ten reprezentuje rzeczywiste połączenia pomiędzy szynami a urządzeniami które one kontrolują. Szyna jest reprezentowana przez strukturę "bus_type". Zaiwera ona informacje o nazwie szyny, informacje o podłączonych urządzeniach, zbiór operacji które można na nich wykonać i wiele innych informacji.
+
+    // można tutaj wkleić definicje struktury
+
+    * Klasa(Class) - Jest to struktura wyższego poziomu abstrakcji która nie skupia się na nieskopoziomowych kwestiach implementacji jak szyna lecz na ogólnym rodzaju urządzenia i jakie operacje da się na nim wykonać, niż jak dokłądnie jest ono podłączone do komputera. Przykłądowe klasy urządzeń to urządzenia audio, sieciowe lub dyski. Klasa reprezentowana jest w jądrze przy pomocy sktruktury "class".
+
+    // można tutaj wkleić definicje struktury
+
+    * Sterownik(Driver) - Obiekt ten opisuje i wskazuje na konkretny sterownik, również nazywany modułem, załadowany w systemie i pozwala na wykonywanie podstawowych operacji na sterownikach takich jak ich zatrzymywanie, uruchamianie, odpytywanie czy wyłączanie i usuwanie sterownika. Implementacja tego obiektu to struktura "device_driver" która przechowuje takie informacje jak nazwa sterownika, prywatne dane sterownika czy rodzaj szyny z której urządzenia obsługuje dany sterownik.
+
+    // można tutaj wkleić definicje struktury
+
+    * Urządzenie(Device) - Na prawie najniszym poziomie istnieje obiekt urządzenia który definiuje konkretną instancje obsługiwanego fizycznego lub wirtualnego urządzenia oraz plik go reprezentujący w wirtualnym systemie plików /dev (devfs). Zdefiniowany jako struktura o nazwie "device" zawiera duży zbiór informacji na temat urządzenia do którego jest przypisany, w tym urządzenie macierzyste, prywatne dane modułu sterownika, szynę do której jest przyłączony, sterownik który obsługuje dane urządzenie czy numery dur(major) oraz moll(minor) które identyfikują wszystkie sterowniki i urzadzenia w systemie.
+
+    // można tutaj wkleić definicje struktury
+
+Wszystkie te struktury są zdefiniowane w pliku nagłówkowym include/linux/device.h wraz z dużą ilością komentarzy opisujących zwierające się w nich atrybuty, struktury oraz wskaźniki do funkcji. Wraz z wieloma mniej ważnymi strukturami które są zazwyczaj atrybutami tych kluczowych obiektów tworzą one model sterowników urządzeń w jądrze Linux. Właściwie żadnej z tych struktur programista nie tworzy lub nie zapełnia własnoręcznie. Istnieje szereg metod opakowujących z których należy korzystać jeżeli programista chce stworzyć lub wykonać jakiekolwiek operacje na którejkolwiek z tych struktur. Ma to na celu ograniczenie błędów płynących z wywpłaszczania wątków jądra jak i problemów z kompatybilności w razie przyszłych zmian w definicjach którejkolwiek z tych kluczowych struktur.
+
+Jednym z najważniejszych elementów identyfikujących urządzenia w systemie Linux wspomniany już w opisie obiekty urządzenia jest para numerów dur oraz moll, znanych w angielskim jako "major" oraz "minor". Numery te są zapisywane kodzie źródłowym jako pojedyńczy typ danych dev_t który od prawie zawsze był definiowanych jako typ unsigned long. Numer dur definiuje rodzaj sterownika a numer moll definiuje numer urządzenia obsługiwany przez dany sterownik. Wszystkie urządzenia w systemie posiadające swoją wirtualną reprezentacje w systemie plików /dev mają przydzielone numery dur oraz moll. Dobrym przykładem jest bardzoe proste urządzenie generujące losowe dane znadujące się pod nazwą /dev/urandom. Podejrzenie takiego urządzenia przy pomocy polecenia "ls -l" daje nam taki oto wynik:
+
+    crw-rw-rw- 1 root root        1,   9 Aug  7 21:34 urandom
+
+W tym przypadku // TODO
 
 ## Model VFS
 
@@ -87,6 +109,10 @@ Wirtualny system plików /sys znany również jako sysfs ma znacznie bardziej lo
 TODO
 
 ### Ze zdalnym urządzeniem
+
+## Rezerwacja pamięci w jądrze
+
+## Zabezpieczenia przed paniką jądra
 
 ## Rozwiązanie problemu serializacji
 
