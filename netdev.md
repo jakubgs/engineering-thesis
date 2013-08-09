@@ -100,11 +100,54 @@ Dzięki wprowadzeniu tego modelu wszystkie sterowniki poszczególnych systemów 
 
     * Wpis katalogowy(Dentry) - Obiekt ten jest przeznczony raczej do ułatwienia wyszukiwania danych w hierarchicznej strukturze katalogowej wielu systemów plików niż do opisywania rzeczywistych obiektów znajdujących się w pojedyńczym systemie plików. Każdy program przestrzeni użytkownika musi korzystać ze ścieżki dostępu jeżeli chce się dostać do jakiegokolwiek zasobu w systemie plików. Przykładową śceżką dostepu do pliku znajdującego się na płycie CD jest "/mnt/cdrom/README.txt". W tej ścieżce dostępu znajdują się cztery wpisy katalogowe: /, mnt, cdrom oraz README.txt. Trzy pierwsze obiekty, "/" przedstawiający katalog-korzeń i "mnt" oraz "cdrom przdstawiający katalog mnt i zawierający się w nim katalog cdrom, znajdują się na systemie plików ext4. Jednak sam plik README.txt znajduje się w systemie plików płyty CDROM, ISO9660. Jądro utrzymuje bufor wpisów katalogowych, który zbiera w miarę jak procesy otwierają i używają plików dostepnych w systemie. Utrzymywanie tego typu bufora znacznie przyspiesza otwieranie wcześniej otwortych zasobów. Wpisy te reprezentowane się przez strukturę "dentry".
 
-    * Plik(File) - Tak jak i-węzeł reprezentuje każdy przynajmniej raz otwarty plik w jądrze tak obiekt pliku reprezentuje plik otwarty przez konrketny proces. Obiekt ten istnieje tak długo jak dany proces korzysta z rzeczywistego pliku i zostaje skasowany gdy proces ten użyje wywołania close() na przypisanym do niego deskryptora pliku(file descriptor). Posiada on odwołanie do odpowiedzniego obiektu i-węzła oraz zbiór informacji przydatnych przy operowaniu na pliku takich jak obecna pozycja w pliku, tryb dostepu do pliku czy zestaw praw dostepu. Obiekt pliku posiada jedeną z najważniejszych struktru w całym jądrze Linux o nazwie "file_operations" jako atrybut "f_op", która posiada kolekcję wskaźników do funkcji które pozwalają wykonywać takie operacje jak open, read, write czy close. Struktura "file_operations" jest kluczowym elementem w implementowania sterowników urządzeń i będzie grała główną rolę w implementacji projektu.
+    * Plik(File) - Tak jak i-węzeł reprezentuje każdy przynajmniej raz otwarty plik w jądrze tak obiekt pliku reprezentuje plik otwarty przez konrketny proces. Obiekt ten istnieje tak długo jak dany proces korzysta z rzeczywistego pliku i zostaje skasowany gdy proces ten użyje wywołania close() na przypisanym do niego deskryptora pliku(file descriptor). Posiada on odwołanie do odpowiedzniego obiektu i-węzła oraz zbiór informacji przydatnych przy operowaniu na pliku takich jak obecna pozycja w pliku, tryb dostepu do pliku czy zestaw praw dostepu.
 
-/* TODO */
+Struktura "file_operations" jest kluczowym elementem w implementowania sterowników urządzeń i będzie grała główną rolę w implementacji projektu.
+
+Z punktu widzenia sterowników urządzeń najbardziej kluczowymi obiektami są i-węzły oraz pliki. Obiekt pliku posiada jedeną z najważniejszych struktru w całym jądrze Linux o nazwie "file_operations", zapisaną jako atrybut "f_op", która posiada kolekcję wskaźników do funkcji które pozwalają wykonywać takie operacje jak open, read, write czy close. Wszystkie urządzenia znakowe oraz blokowe muszą implementować podstawowy zestaw operacji reprezentowany przez tą strukturę i prawie każda z nich bierze jako argument obiekt pliku. Niektóre biorą również obiekt i-węzła. Dzięki temu sterownik otrzymuje niezbędne informacje odnośnie tego który plik urządzenia został otwarty.
+
+Struktura "file_operations" jest kluczowym interfejsem który pozwala ukryć ogromną różnorodność urządzeń pod zestawem prostych operacji, z których każdy proces w przestrzeni użytkownika może skorzystać bez rozrózniania pomiędzy typami urządzeń. Struktura ta jest zdefiniowana w pliku include/linux/fs.h i wygląda następująco:
+
+    struct file_operations {
+	    struct module *owner;
+	    loff_t (*llseek) (struct file *, loff_t, int);
+	    ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
+	    ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
+	    ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
+	    ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
+	    int (*readdir) (struct file *, void *, filldir_t);
+	    unsigned int (*poll) (struct file *, struct poll_table_struct *);
+	    long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
+	    long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
+	    int (*mmap) (struct file *, struct vm_area_struct *);
+	    int (*open) (struct inode *, struct file *);
+	    int (*flush) (struct file *, fl_owner_t id);
+	    int (*release) (struct inode *, struct file *);
+	    int (*fsync) (struct file *, loff_t, loff_t, int datasync);
+	    int (*aio_fsync) (struct kiocb *, int datasync);
+	    int (*fasync) (int, struct file *, int);
+	    int (*lock) (struct file *, int, struct file_lock *);
+	    ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
+	    unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
+	    int (*check_flags)(int);
+	    int (*flock) (struct file *, int, struct file_lock *);
+	    ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
+	    ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
+	    int (*setlease)(struct file *, long, struct file_lock **);
+	    long (*fallocate)(struct file *file, int mode, loff_t offset,
+			      loff_t len);
+	    int (*show_fdinfo)(struct seq_file *m, struct file *f);
+    };
+
+W celu udostępnienia urządzenia znakowego na urządzeniu połączonym przez sieć kluczowe jest stworzenie "fałszywego" pliku urządzenia na komputerze klienckim, udostępnienie zestawu niezbędnych operacji plikowych i przekazanie wszystkich ich wywołań do maszyny posiadającej rzeczywiste urządzenie, a następnie przekazanie wyniku wywołania tej operacji z powrtotem do maszyny klienckiej.
+
+Urządzenie znakowe nie musi jednak implementować wszystkich operacji. Przykładem operacji bezużytecznych dla plików urządzeń jest funkcja readdir(), która ma sens tylko i wyłącznie dla plików które są katalogami, oraz sendpage(), która przeznaczona jest raczej dla urządzeń sieciowych takich jak gniazda unix. Inne operacje takie jak aio_read() i aio_write() są rzadko implementowane dla urządzeń i prawie zawsze wartość ich wskaźnika wynosi NULL co sprawia że kernel po prostu używa zwykłych funkcji read() oraz write().
+
+Wirtualny system plików jest kluczową abstrakcją w zrozumieniu jak jądro linux udostępnia swoje urządzenia do przestrzeni użytkownika. Prawie każde urządzenie w systemie posiada swoją reprezentacje w systemie plików /dev i implementuje większość lub wszystkie z tych operacji. Oczywiście istnieje szereg innych metod komunikacji z procesami specyficznych dla konkretnego rodzaju urządzeń. Na przykład karty graficzne posiadają interfejs DRI(Direct Rendering Infrastructure) która omija interfejs operacji na plikach w celu osiągnięcia jak najwyższej wydajności w obróbce grafik. Na szczęście na potrzeby zwykłych urządzeń znakowych implementacja podstawowych operacji na plikach w zupełności wystarczy.
 
 ## Urządzenia znakowe
+
+
 
 # Wybrane rowziązania (10%)
 
