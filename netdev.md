@@ -147,13 +147,26 @@ Wirtualny system plików jest kluczową abstrakcją w zrozumieniu jak jądro lin
 
 ## Urządzenia znakowe
 
+Urządzenia znakowe to jedne z najprostszych urządzeń jakie można znaleźć w systemie Linux. Główna róźnica pomiędzy urządzeniami zakowymi a urządzeniami blokowymi wynika z użycia buforów i pamięci podręcznej oraz możliwośc wykonywania operacji losowego dostępu(random access). Urządzenia znakowe nie korzystają z buforów ani pamięci podręcznej i nie udostępniają możliwości odczytywania czy zapisywania danych w dowolnie wybranych miejscach. Urządzenia blokowe natomiast pozwalają procesom wybirać punkt z którego będą odyczytywać i do którego będą zapisywać dane oraz korzystają z pamięci podręcznej w celu zwiększenia wydajności jako iż częstym zjawiskiem jest wielokrotne odczytywanie lub zapisywanie tej samej lokalizacji w medium przechowującym dane.
 
+Podstawowym obiektem przedstawiającym urządzenia znakowe w jądrze Linux jest struktura "cdev" zdefiniowan w pliku include/linux/cdev.h. Wygląda ona następująco:
+
+    struct cdev {
+	    struct kobject kobj;
+	    struct module *owner;
+	    const struct file_operations *ops;
+	    struct list_head list;
+	    dev_t dev;
+	    unsigned int count;
+    };
+
+Posiada ona k-obiekt(kobject), który jest strukturą używaną przez jądro Linux do zarządzania i organizowania dużą ilością obiektów używanych w trakcie działania systemu. Można ten obiekt nazwać obiektem pomocniczym, ułatwia on na przykład lokalizowanie struktur na podstawie elementów które się w nich zawierają. Kolejnym atrybutem jest  wskaźnik do struktury "module" który wskazuje na modół sterownika obsługujący dane urządzenie znakowe. Posiada on oczywiście strukturę "file_operations" którą już zindentyfikowaliśmy jako niezbędny element każdego sterownika który chce udostepnić urządzenie które obsługuje systemowi. Wskaźnik ten jest wypełniany przez sterownik podczas inicjalizacji urządzenia i jądro używa tych operacji do nadpisania domyslnych operacji na plikach które przypisane są plikowi na podstawie systemu plików w jakim się znajduję. Struktura "list_head" jest pierwszym wskaźnikiem w dwukierunkowej liście obiektów i-węzłów czyli plików w systemie /dev połączonych z tym konkretnym urządzeniem znakowym a count to ilość elementów w liście i-węzłów. Atrubut dev zapisuje numery dur oraz moll.
+
+
+
+## Model oprogramowania
 
 # Wybrane rowziązania (10%)
-
-* Wymienienie problemów
-* możliwych rozwiązań
-* wybrane rowziązania
 
 ## Wybór metod komunikacji
 
@@ -175,7 +188,13 @@ Pozostałe dwie kategorie to wirtualne systemy plikół takie jak /proc i /sys o
 
 Wirtualny system plików /sys znany również jako sysfs ma znacznie bardziej logiczną strukturę która pozwala ne eksportowanie obiektów z przestrzeni jądra jako katalogów, ich atrybutów jako plików oraz relacji z innymi obiektami jako dowiązania symboliczne. Posiada on również sygnalizację o wydażeniach zaimplementowaną przy pomocy gniazd Netlink o których będzie mowa w nastepnym paragrafie. Niestety system sysfs nadal ogrannicza transfer danych do jednej strony pamięci oraz format danych potrafi zmieniać się pomiędzy wersjami jądra więc nie jest to bezpieczny sposób przekazywania informacji do przestrzeni użytkownika.
 
-TODO
+Metody komunikacji oparte na gniazdach BSD udostępnieją znacznie bardziej przyjazdny interfejs do komunikacji z przestrzenią jądra. Bardziej prymitywną metodą z dwóch dostepnych jest używanie tak zwanych surowych gniazd typu AF_RAW które pozwalają na przesyłanie struktur danych o stałym formacie oraz korzystania ze specjalnego wywołania systemowego ioctl które przyjmuje jako argument dwie wartości typu long, pierwszą definiującą typ komunikatu i drugą wartość samego komunikatu. Jest to nadal bardzo ograniczone jeżeli chodzi o możliwość modyfikowania i rozwijania metody komunikacji ale powala jako pierwsza metoda na przysyłanie dużych ilości danych czego nie można powiedzieć o metodach komunikacji opartych na wirtualnych systemach plików.
+
+Ostatnią metodą jąką udostępnia jądro linux jest protokół Netlink oparty na gniazdach BSD. Jest to bezpołączeniowy protokół komunikacji opierający się na datagramach przypominający UDP, który pozwala na transfer dużych ilości danych, zapewnia taki sam poziom przenośności jak każdy inny protokół sieciowy oraz pozwala na łatwe rozwijanie metod komunikacji w miare rozwoju projektu. Kluczową charakterystuką protokołu Netlink jest stały format zapewniający jasny podział na wiadomości, które wyróżniają się własnym numerem sekwencyjnym, typem komunikatu, zmienną długością, numerem identyfikującym proces źródłowy oraz zestawem specjalnych flag. Flagi obecne w każdym datagramie Netlink pozwalają na dodatkową implentacje niezawodności porzez przesyłanie wiadomości potwierdzających otrzymanie przekazu pozbywając się tym sposobem ograniczeń wynikających z niepołączeniowej natury protokołu.
+
+Biorąc pod uwagę wszystkie możliwości protokołu Netlink jest on najlepszą opcją jeżeli chodzi o implementowanie sprawnej metody komunikacji, która pozwala na szybki transfer dowolnej ilości danych oraz łatwą identyfikacje poszczególnych wiadomości i ich rodzaju. Aplikacje w przestrzeni użytkownika mogą korzystać z protokołu netlink tak samo jak robią to w przypadku innych protokołów sieciowych. Jedyną różnicą jest potrzeba wywołania funkcji socket() z rodziną gniazda ustawioną na AF_NETLINK oraz typem protokołu na SOCK_RAW i używaniem struktury "nlmsghdr" jako podstawę budowania każdej wiadomości przeznaczonej do przestrzeni użytkownika.
+
+Dodatkowo pokrewieństwo gniazd Netlink z gniazdami TCP/IP jest dodatkowym ułątwienie pozwalającym na łatwe przekazywanie komunikatów odebranych z jednego rodzaju gniazda do drugiego. Powinno to znacznie uporosić implementacje procesu serwera odpowiedzialnego za przekazywanie wszystkich operacji plikowych do zdalnej maszyny posiadającej fizyczny egzaemplarz udostępnianego urządzenia. Jest to idealne rowziązanie na potrzeby tego projektu.
 
 ### Ze zdalnym urządzeniem
 
