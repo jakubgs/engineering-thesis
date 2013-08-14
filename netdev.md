@@ -41,7 +41,7 @@ Wszystkie biblioteki urzyte w projekcie są częścią standardu POSIX. Implemen
 
 ## Podział pracy
 
-# Teoria (5%)
+# Teoria/Modele organizacji w jądrze Linux(5%)
 
 * definicja rozważanego zagadnienia
 * aktualny stan wiedzy
@@ -165,6 +165,32 @@ Posiada ona k-obiekt(kobject), który jest strukturą używaną przez jądro Lin
 
 
 ## Model oprogramowania
+
+Jasnym jest że na projekt będzie musiał składać się moduł sterownika jądra Linux, który będzie odpowiedzialny za stworzenie urządzenia-atrapy i odbieranie operacji plikowych na nim wikonanych jak i przekazywanie ich do rzeczywistego urządzenia na maszynie króra je posiada. Jednak z uwagi na na wiele decyzji podjętych podczas tworzenia jądra Linux wielu programistów jądra od razu zaznaczy iż nie należy robić w przestrzeni jądra wielu rzeczy które są jak najbardziej naturalne w przestrzeni użytkownika. Dwa takie przykłądy to otwieranie i czytanie plików oraz wykonywanie połączeń sieciowych w kodzie jądra. Istnieje wiele powodów dla których nie należy robić tych rzeczy z przestrzeni jądra. Po pierwsze czytanie plików czy odbieranie danych z gniazda wymaga konwertowania tych danych do formatu używalnego przez kod jądra. W wielku przypadkach jest to wyzwanie które jest bardzo podatne na błędy w postaci rezerwowania zbyt dużych przestrzeni pamięci w trakcie tego procesu lub używanie wartości które nie zostały poprawnie sprawdzone które mogą prowadzić do wykraczania poza przydzieloną nam pamięć. W przypadku plików problemem jest również lokalizacja pliku a w przypadku połączeń sieciowych odnalezienie porpawnego adresu co bardzo często kończy się statycznym ustawianiem ścieżek i adresów w kodzie jądra co będzie wymagać przekompilowania za każdym razem gdy ta lokalizacja lub adres się zmieni.
+
+Dodatkowym problemem jest zagrożenie bezpieczeństwa jądra. Pobieranie danych prosto ze zdalnej lokalizacji do jądra jest wręcz jawnym zaproszeniem dla wszelkiego rodzaju złośliwych użytkowników sieci do próby wykorzystania naszego modułu w celu przejęcia kontroli nad naszym systemem. Jądro powinno być ostatnim bastionem bezpieczeństwa w systemie operacyjnym i wystawianie go dla publicznego dostepu przez sieć jest bardzo złą praktyką. Popełnienie takiego błędu jest wręcz gwarancją ze twój kod nie zostanie przyjęty do projektu jądra Linux i najprawdopodobniej programista taki zostanie pouczony na temat podstawowych zasad projektowania systemów operacyjnych.
+
+Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy. Przede wszystkim moduł jądra odpowiedzialny za stronę sprzętową oraz tworzenie urządzenia atrapy. Drugim elementem będzie program przestrzeni użytkownika odpowiedzialny za wczytanie odpowiedniej konfiguracji, połączenie się z modułem jądra oraz zdalną maszyną i ustanowieniem połączenia pomiędzy oboma końcami. Dzięki takiemu modelowi wszystkie problemy związane z wczytywaniem konfiguracji, kontrolą modułu oraz bezpieczeństwem zostaną przeniesione do warstwy użytkownika co powinno znacznie uprościć kod modułu i przyspieszyć jego działanie oraz sprawić że końcowy produkt będzie bardziej elastyczny w konfiguracji i użytkowaniu. Poniżej przedstawiam prosty diagram opisujący przykłądowe połączenie pomiędzy urządzeniem fizycznym udostępniającym swoje zasoby na maszynie serwerowej a urządzeniem-atrapą udającym rzeczywiste urządzenie na maszynie klienckiej:
+
+    Fizyczne urządzenie
+            |
+        Moduł jądra
+            |
+            |- Połączenie Netlink
+            |
+          Serwer
+            |
+            |- Połączenie TCP/IP
+            |
+          Klient
+            |
+            |- Połączenie Netlink
+            |
+        Moduł jądra
+            |
+    Urządzenie-atrapa
+
+/* TODO */
 
 # Wybrane rowziązania (10%)
 
