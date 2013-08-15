@@ -160,9 +160,27 @@ Podstawowym obiektem przedstawiającym urządzenia znakowe w jądrze Linux jest 
 	    unsigned int count;
     };
 
-Posiada ona k-obiekt(kobject), który jest strukturą używaną przez jądro Linux do zarządzania i organizowania dużą ilością obiektów używanych w trakcie działania systemu. Można ten obiekt nazwać obiektem pomocniczym, ułatwia on na przykład lokalizowanie struktur na podstawie elementów które się w nich zawierają. Kolejnym atrybutem jest  wskaźnik do struktury "module" który wskazuje na modół sterownika obsługujący dane urządzenie znakowe. Posiada on oczywiście strukturę "file_operations" którą już zindentyfikowaliśmy jako niezbędny element każdego sterownika który chce udostepnić urządzenie które obsługuje systemowi. Wskaźnik ten jest wypełniany przez sterownik podczas inicjalizacji urządzenia i jądro używa tych operacji do nadpisania domyslnych operacji na plikach które przypisane są plikowi na podstawie systemu plików w jakim się znajduję. Struktura "list_head" jest pierwszym wskaźnikiem w dwukierunkowej liście obiektów i-węzłów czyli plików w systemie /dev połączonych z tym konkretnym urządzeniem znakowym a count to ilość elementów w liście i-węzłów. Atrubut dev zapisuje numery dur oraz moll.
+Jak prawie każda ważna struktura w jądrze posiada ona k-obiekt(kobject), który jest strukturą używaną przez jądro Linux do zarządzania i organizowania obiektów używanych w trakcie działania systemu. Można ten obiekt nazwać obiektem pomocniczym, ułatwia on na przykład lokalizowanie struktur na podstawie elementów które się w nich zawierają. K-obiekty to złożony mechanizm kontroli wielu kluczowych obiektów istniejących w kodzie jądra Linux i pojawia się on w prawie każdym podsystemie jaki w nim istnieje. Dokłądne wytłumaczenie tej struktury i jej działania wykracza znacznie poza zakres tego projektu i samo w sobie było by dobrym tematem na dość rozbudowaną pracę inzynierską.
 
+Kolejnym atrybutem jest  wskaźnik do struktury "module" który wskazuje na moduł sterownika obsługujący dane urządzenie znakowe. Posiada on oczywiście strukturę "file_operations" którą już zindentyfikowaliśmy jako niezbędny element każdego sterownika który chce udostepnić urządzenie które obsługuje systemowi. Wskaźnik ten jest wypełniany przez sterownik podczas inicjalizacji urządzenia i jądro używa tych operacji do nadpisania domyslnych operacji na plikach które przypisane są plikowi na podstawie konfiguracji sterownika systemu plików w jakim się znajduję. Struktura "list_head" jest pierwszym wskaźnikiem w dwukierunkowej liście obiektów i-węzłów czyli plików w systemie /dev połączonych z tym konkretnym urządzeniem znakowym a count to ilość elementów w liście i-węzłów. Atrubut dev zapisuje przedstawione wcześniej numery dur oraz moll, które w unikalny sposób identyfikują to urządzenia oraz jego sterownik.
 
+Struktura ta nie jest jednak tworzona i wypełniana przez programistę. Jądro udostępnia szereg metod opakowującychy które gwarantują prawidłową obsługę błędów i kompatybilność na przestrzeni wielu wersji jądra. Oto lista najważniejszych z nich:
+
+    struct cdev *cdev_alloc(void);
+    Słuzy do alokowania przestrzeni pamięci niezbędnej dla struktury cdev. Zaleca się uyżywania tej fukncji z uwagi na to iż poza alokowaniem pamięci inicjalizuje ona również k-obiekt zawarty w cdev.
+
+    void cdev_init(struct cdev *, const struct file_operations *);
+    Odpowiada za inicjalizację struktury cdev przy pomocy wcześniej przygotowanej struktury reprezentującej pełen zestaw operacji plikowych implementowanych przez dany sterownik. Większośc sterowników urządzeń znakowych wywołuję tą funkcje z celu przygotowania do użycia struktury cdev, która istnieje jako atrybut jakiejś wewnętrznej struktury używanej przez sterownik do przechowywania danych u implementowanym urządzeniu. Również inicjalizuje k-obiekt.
+
+    int cdev_add(struct cdev *, dev_t, unsigned);
+    Dodaje urządzenie reprezentowane przez strukturę cdev do systemu. Funkcja ta powinno zostać wywołana wtedy i tylko wtedy gdy sterownik wykonał pomyślnie wszystkie operacje przygotowujące urządzenie do obsługi operacji na nim wykonanych. Po poprawnym powrocie z tej funkcji urządzenie jest uznawana za gotowe do pracy. Dodatkowo zwiększa licznik referencji zawarty w k-obiekcie.
+
+    void cdev_del(struct cdev *);
+    Usuwa urządzenie z systemu oraz zmniejsza licznik referencji zawarty w k-obiekcie. W efekcie może to spowodować zwolnienie pamięci przeznaczonej dla struktury gdy licznik referencji osiągnie 0.
+
+Funkcje te są zdeklarowane w pliku include/linux/cdev.h oraz zdefiniowane w pliku fs/char_dev.c. Poza wywołaniem funkcji cdev_alloc(), cdev_init() oraz cdev_add() w odpowiedniej kolejności sterownik nie musi w żaden sposób operować na strukturze cdev aż do momentu, w którym gotowy jest usunąć urządzenie i wywołuje cdev_del(). Poza tym struktura cdev pozostaje dostępna raczej jako repozytorium informacji o urządzeniu raczej niż aktywnie modyfikowany obiekt w trakcie działania urządzenia.
+
+W celu przechowywania dokłądniejszych danych o naszym urządzeniu sterownik będzie musiał stworzyć własną wewnętrzną strukturę reprezentującą urządzenie. Zostanie to opisane w dalszych rozdziałach.
 
 ## Model oprogramowania
 
@@ -170,7 +188,7 @@ Jasnym jest że na projekt będzie musiał składać się moduł sterownika jąd
 
 Dodatkowym problemem jest zagrożenie bezpieczeństwa jądra. Pobieranie danych prosto ze zdalnej lokalizacji do jądra jest wręcz jawnym zaproszeniem dla wszelkiego rodzaju złośliwych użytkowników sieci do próby wykorzystania naszego modułu w celu przejęcia kontroli nad naszym systemem. Jądro powinno być ostatnim bastionem bezpieczeństwa w systemie operacyjnym i wystawianie go dla publicznego dostepu przez sieć jest bardzo złą praktyką. Popełnienie takiego błędu jest wręcz gwarancją ze twój kod nie zostanie przyjęty do projektu jądra Linux i najprawdopodobniej programista taki zostanie pouczony na temat podstawowych zasad projektowania systemów operacyjnych.
 
-Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy. Przede wszystkim moduł jądra odpowiedzialny za stronę sprzętową oraz tworzenie urządzenia atrapy. Drugim elementem będzie program przestrzeni użytkownika odpowiedzialny za wczytanie odpowiedniej konfiguracji, połączenie się z modułem jądra oraz zdalną maszyną i ustanowieniem połączenia pomiędzy oboma końcami. Dzięki takiemu modelowi wszystkie problemy związane z wczytywaniem konfiguracji, kontrolą modułu oraz bezpieczeństwem zostaną przeniesione do warstwy użytkownika co powinno znacznie uprościć kod modułu i przyspieszyć jego działanie oraz sprawić że końcowy produkt będzie bardziej elastyczny w konfiguracji i użytkowaniu. Poniżej przedstawiam prosty diagram opisujący przykłądowe połączenie pomiędzy urządzeniem fizycznym udostępniającym swoje zasoby na maszynie serwerowej a urządzeniem-atrapą udającym rzeczywiste urządzenie na maszynie klienckiej:
+Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy. Przede wszystkim moduł jądra odpowiedzialny za stronę sprzętową oraz tworzenie urządzenia atrapy. Drugim elementem będzie program przestrzeni użytkownika odpowiedzialny za wczytanie odpowiedniej konfiguracji, połączenie się z modułem jądra oraz zdalną maszyną i ustanowieniem połączenia pomiędzy oboma końcami transkcji. Dzięki takiemu modelowi wszystkie problemy związane z wczytywaniem konfiguracji, kontrolą modułu oraz bezpieczeństwem zostaną przeniesione do warstwy użytkownika co powinno znacznie uprościć kod modułu i przyspieszyć jego działanie oraz sprawić że końcowy produkt będzie bardziej elastyczny w użytkowaniu i konfiguracji. Poniżej przedstawiam prosty diagram opisujący przykłądowe połączenie pomiędzy urządzeniem fizycznym udostępniającym swoje zasoby na maszynie serwerowej a urządzeniem-atrapą udającym rzeczywiste urządzenie na maszynie klienckiej:
 
     Fizyczne urządzenie
             |
@@ -190,7 +208,9 @@ Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy.
             |
     Urządzenie-atrapa
 
-/* TODO */
+Przyjmując taki model projektu rozszerza projekt o dodatkową warstwę komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika co w wyraźny sposób komplikuje proces komunikacji pomiędzy fałszywym urządzeniem a rzeczywistym fizycznym urządzeniem. Jest to jednak utrudnienie niezbędne biorąc pod uwagę polisy jakie rządzą rozwojem kodu jądra Linux. Jako że chcemy udostępniać urządzenia fizyczne za pośrednictwem tego oprogramowania kluczowa jest wysoka przepustowaość w przesyłaniu dużych ilości danych i niezawodność która zapewni że żadna operacja na pliku nie zostanie pominięta podczas przesyłania. Dokłądny opis podjęcia tej decyzji znajduje się w rozdziale [TODO](Wybór metod komunikacji - z przestrzenią użytkownika).
+
+W celu zmniejszenia nakłądu pracy kosztem małego zwiększenia złożoności kodu podjęta została decyzja aby zaimplementować jeden moduł jądra, który będzie wykonywał rolę serwera oraz klienta i jeden program przestrzeni użytkownika, który tak samo będize wypełniał rolę serwera oraz klienta. Powinno to znacznie zmniejszyć ilość linijek kodu niezbędnych do ukończenia tego projektu i uprości konfiguracje dla potencjalnych użytkowników. 
 
 # Wybrane rowziązania (10%)
 
