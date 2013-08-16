@@ -210,7 +210,7 @@ Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy.
 
 Przyjmując taki model projektu rozszerza projekt o dodatkową warstwę komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika co w wyraźny sposób komplikuje proces komunikacji pomiędzy fałszywym urządzeniem a rzeczywistym fizycznym urządzeniem. Jest to jednak utrudnienie niezbędne biorąc pod uwagę polisy jakie rządzą rozwojem kodu jądra Linux. Jako że chcemy udostępniać urządzenia fizyczne za pośrednictwem tego oprogramowania kluczowa jest wysoka przepustowaość w przesyłaniu dużych ilości danych i niezawodność która zapewni że żadna operacja na pliku nie zostanie pominięta podczas przesyłania. Dokłądny opis podjęcia tej decyzji znajduje się w rozdziale [TODO](Wybór metod komunikacji - z przestrzenią użytkownika).
 
-W celu zmniejszenia nakłądu pracy kosztem małego zwiększenia złożoności kodu podjęta została decyzja aby zaimplementować jeden moduł jądra, który będzie wykonywał rolę serwera oraz klienta i jeden program przestrzeni użytkownika, który tak samo będize wypełniał rolę serwera oraz klienta. Powinno to znacznie zmniejszyć ilość linijek kodu niezbędnych do ukończenia tego projektu i uprości konfiguracje dla potencjalnych użytkowników. 
+W celu zmniejszenia nakłądu pracy kosztem małego zwiększenia złożoności kodu podjęta została decyzja aby zaimplementować jeden moduł jądra, który będzie wykonywał rolę serwera oraz klienta i jeden program przestrzeni użytkownika, który tak samo będize wypełniał rolę serwera oraz klienta. Powinno to znacznie zmniejszyć ilość linijek kodu niezbędnych do ukończenia tego projektu i uprości konfiguracje dla potencjalnych użytkowników.
 
 # Wybrane rowziązania (10%)
 
@@ -277,6 +277,16 @@ Z uwagi na to podjęta została decyzja by użyć protokołu TCP w implementacji
 ## Zabezpieczenia przed paniką jądra
 
 ## Rozwiązanie problemu serializacji
+
+Każdy programista piszący programy korzystające z jakiegokolwiek protokołu komunikacji sieciowej musi dobrze zdawać sobię sprawę z problemu serializacji danych przy ich wysyłaniu oraz odbieraniu. Problem serializacji wynika w kilku czynników. Jednym z głownych czynników jest kolejność bajtów(ang. Endianess) w liczbach całkowitych czy zmienno przecinkowych, których wielkość wynosi przynajmniej dwa bajty. Główne dwa rodzaje kolejności bajtów to kolejność Big-endian w której ważniejszy bajt jest zapisywany w komórce o najnizszym adresie oraz Little-endian, w którym najmniej ważny bat jest zapisywany w komórce o najniższym adresie. Kolejność ta zalezy od platformy i jej architektury na jakiej dany program jest uruchamiany.
+
+Obecnie najpopularniejsze architektury takie jak x86 czy x86-64 wykorzystują kolejność little-endian. Big-endian jest raczej formatem używanym w systemach wbudowanych lub niektórych urządzeniach rpzenośnych takich jak komórki. Układ Big-endian jest również znany jako "konwencja Motoroli" jako że ich procesory jako jedne z pierwszych używały ukłądu Big-endian na dużą skalę. Inne przykłady to żadko spotykane systemy IBM POWER lub IBM System 360 i 370. Dodatkowo większość popularnych architektur takich jak MIPS, SPARC, ARM, czy PowerPC pozwalaja zmieniać kolejność bajtów podczas uruchamiania systemu(zmiana nie jest możliwa w trakcie działania systemu).
+
+Dodatkowym problemem jest kwestia różnej wielkości podstawowych typów danych takich jak int pomiędzy platformami. Najbardziej kluczowa jest ta różnica pomiędzy platformami 32 i 64 bitowymi które może zmienić długość takich typów jak long który musi być przynajmniej 32 bitowy ale może być większy.
+
+Jądro Linux praktycznie od zawsze używa ukłądu bajtów little-endian i większość ważnych typów danych w systemie jest definiowanych w statyczny sposób jako typy o konkretnej ilości bajtów przy pomocy makr takich jak __kernel_uid32_t, które gwarantują typ danyc o długości 32 bitów. Przykłądem takiego typu może być powszechnie używany size_t lub loff_t. Dodakotowo w przestrzeni użytkownika można korzystać z typów danych takich jak int64_t oraz int32_t które gwarantują odpowiednią długość bitową zmiennych użytych do przesyłania danych. Z uwagi na to iż projekt może być używany jedynie na platformach z systemem Linux praktycznie gwarantowany jest układ little-endian i wielkość używanch podstawowych typów danych, podjęta została decyzja by zignorować problem serializacji danych na potrzeby komunikacji pomiędzy maszynami na rzecz uproszczenia kodu i zmniejszenia nakłądu pracy. Szansa użycia tego oprogramowania na systemie o innej chrakterystyce jest nadal istnieje ale nie jest to bardzo prawdopodobne.
+
+W przyszłości możliwe będzie rozszerzenie kodu o warstwę zapewniającą poprawną serializacje wszystkich danych przed przesłaniem ich z jednego modułu jądra z apośrednictwem programu serwera do drugiego modułu jądra na zdalnej maszynie.
 
 ## Prohlem wywłaszczania/współdzielenia
 
