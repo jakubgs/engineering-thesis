@@ -33,7 +33,7 @@ Kod jadra nie jest jednak napisany w czystym C. Wiele kluczowych elementów jąd
 
 ### Biblioteki
 
-Wszystkie biblioteki urzyte w projekcie są częścią standardu POSIX. Implementacja komunikacji sieciowej jak i komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika korzysta ze standardowych bibliotek systemu GNU/Linux. TODO
+Wszystkie wywołania systemowe urzyte w projekcie są częścią standardu POSIX. Implementacja komunikacji sieciowej jak i komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika korzysta ze standardowych bibliotek środowiska operacyjnego GNU czyli [GLIBC][b13]. Żadne dodatkowe biblioteki nie zostały wykorzystane przy rozwoju tego projektu. Wszystkie niezbędne struktury danych takie jak tablice haszujące czy kolejki FIFO mają swoje ogólne implementacje dostępne bezpośrednio w nagłówkach jądra Linux. Do implementacji progrmau serwera zostały wykorzystane podstawowe funkcje interfejsu gniazd BSD dostepne w systemie Linux czyli sendmsg, recvmsg oraz select. Serializacja danych danych oraz implementacja protokołu komunikacji zostały zaimplementowane własnoręcznie bez użycia dodatkowych bibliotek.
 
 ## Interfejs
 ### Argumenty
@@ -184,9 +184,11 @@ W celu przechowywania dokłądniejszych danych o naszym urządzeniu sterownik b�
 
 ## Model oprogramowania
 
-Jasnym jest że na projekt będzie musiał składać się moduł sterownika jądra Linux, który będzie odpowiedzialny za stworzenie urządzenia-atrapy i odbieranie operacji plikowych na nim wikonanych jak i przekazywanie ich do rzeczywistego urządzenia na maszynie króra je posiada. Jednak z uwagi na na wiele decyzji podjętych podczas tworzenia jądra Linux wielu programistów jądra od razu zaznaczy iż nie należy robić w przestrzeni jądra wielu rzeczy które są jak najbardziej naturalne w przestrzeni użytkownika. Dwa takie przykłądy to otwieranie i czytanie plików oraz wykonywanie połączeń sieciowych w kodzie jądra. Istnieje wiele powodów dla których nie należy robić tych rzeczy z przestrzeni jądra. Po pierwsze czytanie plików czy odbieranie danych z gniazda wymaga konwertowania tych danych do formatu używalnego przez kod jądra. W wielku przypadkach jest to wyzwanie które jest bardzo podatne na błędy w postaci rezerwowania zbyt dużych przestrzeni pamięci w trakcie tego procesu lub używanie wartości które nie zostały poprawnie sprawdzone które mogą prowadzić do wykraczania poza przydzieloną nam pamięć. W przypadku plików problemem jest również lokalizacja pliku a w przypadku połączeń sieciowych odnalezienie porpawnego adresu co bardzo często kończy się statycznym ustawianiem ścieżek i adresów w kodzie jądra co będzie wymagać przekompilowania za każdym razem gdy ta lokalizacja lub adres się zmieni.
+W tej chwili powinno już być oczywisty że na projekt będzie musiał składać się moduł sterownika jądra Linux, który będzie odpowiedzialny za stworzenie urządzenia-atrapy i odbieranie operacji plikowych na nim wykonanych jak i przekazywanie ich do prawdziwego urządzenia na maszynie króra je rzeczywiście posiada. Jednak z uwagi na na wiele decyzji podjętych podczas tworzenia jądra Linux wielu programistów jądra od razu zaznaczy iż nie należy robić w przestrzeni jądra wielu rzeczy które wydają się jak najbardziej naturalne w przestrzeni użytkownika. Dwa takie przykłądy to otwieranie i czytanie plików oraz wykonywanie połączeń sieciowych w kodzie jądra.
 
-Dodatkowym problemem jest zagrożenie bezpieczeństwa jądra. Pobieranie danych prosto ze zdalnej lokalizacji do jądra jest wręcz jawnym zaproszeniem dla wszelkiego rodzaju złośliwych użytkowników sieci do próby wykorzystania naszego modułu w celu przejęcia kontroli nad naszym systemem. Jądro powinno być ostatnim bastionem bezpieczeństwa w systemie operacyjnym i wystawianie go dla publicznego dostepu przez sieć jest bardzo złą praktyką. Popełnienie takiego błędu jest wręcz gwarancją ze twój kod nie zostanie przyjęty do projektu jądra Linux i najprawdopodobniej programista taki zostanie pouczony na temat podstawowych zasad projektowania systemów operacyjnych.
+Istnieje wiele powodów dla których nie należy robić tych rzeczy z przestrzeni jądra. Po pierwsze czytanie plików czy odbieranie danych z gniazda wymaga konwertowania tych danych do formatu używalnego przez kod jądra. W wielku przypadkach jest to wyzwanie które jest bardzo podatne na błędy w postaci rezerwowania zbyt dużych lub małych przestrzeni pamięci w trakcie tego procesu lub używanie wartości, które nie zostały poprawnie sprawdzone i które mogą prowadzić do wykraczania poza przydzieloną nam pamięć. W przypadku plików problemem jest również lokalizacja pliku a w przypadku połączeń sieciowych odnalezienie porpawnego adresu co bardzo często kończy się na statycznym ustawieniu ścieżek lub adresów w kodzie jądra co będzie wymagać przekompilowania za każdym razem gdy ta lokalizacja lub adres się zmieni.
+
+Dodatkowym problemem jest zagrożenie bezpieczeństwa jądra. Pobieranie danych prosto ze zdalnej lokalizacji do jądra jest wręcz jawnym zaproszeniem dla wszelkiego rodzaju złośliwych użytkowników sieci do próby wykorzystania naszego modułu w celu przejęcia kontroli nad naszym systemem. Jądro powinno być ostatnim bastionem bezpieczeństwa w systemie operacyjnym i wystawianie go dla publicznego dostepu przez sieć jest bardzo złą praktyką. Popełnienie takiego błędu jest wręcz gwarancją ze kod nie zostanie przyjęty do projektu jądra Linux i najprawdopodobniej programista taki zostanie pouczony na temat podstawowych zasad projektowania systemów operacyjnych.
 
 Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy. Przede wszystkim moduł jądra odpowiedzialny za stronę sprzętową oraz tworzenie urządzenia atrapy. Drugim elementem będzie program przestrzeni użytkownika odpowiedzialny za wczytanie odpowiedniej konfiguracji, połączenie się z modułem jądra oraz zdalną maszyną i ustanowieniem połączenia pomiędzy oboma końcami transkcji. Dzięki takiemu modelowi wszystkie problemy związane z wczytywaniem konfiguracji, kontrolą modułu oraz bezpieczeństwem zostaną przeniesione do warstwy użytkownika co powinno znacznie uprościć kod modułu i przyspieszyć jego działanie oraz sprawić że końcowy produkt będzie bardziej elastyczny w użytkowaniu i konfiguracji. Poniżej przedstawiam prosty diagram opisujący przykłądowe połączenie pomiędzy urządzeniem fizycznym udostępniającym swoje zasoby na maszynie serwerowej a urządzeniem-atrapą udającym rzeczywiste urządzenie na maszynie klienckiej:
 
@@ -198,7 +200,7 @@ Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy.
             |
           Serwer
             |
-            |- Połączenie TCP/IP
+            |- Połączenie TCP/IP (sieć lokalna/internet)
             |
           Klient
             |
@@ -208,9 +210,9 @@ Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy.
             |
     Urządzenie-atrapa
 
-Przyjmując taki model projektu rozszerza projekt o dodatkową warstwę komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika co w wyraźny sposób komplikuje proces komunikacji pomiędzy fałszywym urządzeniem a rzeczywistym fizycznym urządzeniem. Jest to jednak utrudnienie niezbędne biorąc pod uwagę polisy jakie rządzą rozwojem kodu jądra Linux. Jako że chcemy udostępniać urządzenia fizyczne za pośrednictwem tego oprogramowania kluczowa jest wysoka przepustowaość w przesyłaniu dużych ilości danych i niezawodność która zapewni że żadna operacja na pliku nie zostanie pominięta podczas przesyłania. Dokłądny opis podjęcia tej decyzji znajduje się w rozdziale [TODO](Wybór metod komunikacji - z przestrzenią użytkownika).
+Przyjmując taki model organizacji rozszerza projekt o dodatkową warstwę komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika co w wyraźny sposób komplikuje proces komunikacji pomiędzy urządzeniem-atrapą a rzeczywistym fizycznym urządzeniem. Jest to jednak utrudnienie niezbędne biorąc pod uwagę polisy jakie rządzą rozwojem kodu jądra Linux. Jako że chcemy udostępniać urządzenia fizyczne za pośrednictwem tego oprogramowania kluczowa jest wysoka przepustowaość w przesyłaniu dużych ilości danych i niezawodność, która zapewni że żadna operacja na pliku nie zostanie pominięta podczas przesyłania. Dokładny opis podjęcia tej decyzji znajduje się w rozdziale [TODO](Wybór metod komunikacji - z przestrzenią użytkownika).
 
-W celu zmniejszenia nakłądu pracy kosztem małego zwiększenia złożoności kodu podjęta została decyzja aby zaimplementować jeden moduł jądra, który będzie wykonywał rolę serwera oraz klienta i jeden program przestrzeni użytkownika, który tak samo będize wypełniał rolę serwera oraz klienta. Powinno to znacznie zmniejszyć ilość linijek kodu niezbędnych do ukończenia tego projektu i uprości konfiguracje dla potencjalnych użytkowników.
+Dodatakowo w celu zmniejszenia nakłądu pracy kosztem małego zwiększenia złożoności kodu podjęta została decyzja aby zaimplementować jeden moduł jądra, który będzie wykonywał rolę serwera oraz klienta i jeden program przestrzeni użytkownika, który tak samo będzie wypełniał rolę serwera oraz klienta. Powinno to znacznie zmniejszyć ilość linijek kodu niezbędnych do ukończenia tego projektu. Powinno to również uprości konfiguracje dla potencjalnych użytkowników z uwagi na prosty podział oprogramowania na moduł oraz serwer.
 
 # Wybrane rowziązania (10%)
 
@@ -310,12 +312,14 @@ W przyszłości możliwe będzie rozszerzenie kodu o warstwę zapewniającą pop
 
 ## Kluczowe struktury danych
 ### netdev_data
-### fileop_request
-### struktury operacji
+### hashtable
+### fo_req
+### fo_access
 
 ## Wielowątkowość/Wywłaszczanie
 ### Semafory rw
 ### atomic_t
+### spinlock
 
 ## Netlink
 ### Tworzenie gniazda
@@ -356,6 +360,7 @@ W przyszłości możliwe będzie rozszerzenie kodu o warstwę zapewniającą pop
 [b10]: http://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html#C-Extensions "Extensions to the C Language Family"
 [b11]: http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html#s4 "Inline Assembly HOWTO"
 [b12]: "Linux Kernel - Przewodnik Programisty", str 98-99 i 365-370, Robert Love
+[b13]: https://www.gnu.org/software/libc/ "The GNU C Library"
 
 # Dodatki
 ## Zawartość CD
