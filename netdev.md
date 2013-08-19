@@ -298,17 +298,50 @@ W przyszłości możliwe będzie rozszerzenie kodu o warstwę zapewniającą pop
 
 # Implementacja (70%)
 
-* techniczna strona rozwiązania
-* istotne wyjątki z kodu
-* kluczowe elementy kodu
-
-## Budowanie i uruchamianie kodu
-### Makefile
-### insmod i rmmod
-
 ## Podział kodu
 ### Pliki
 ### Wspólne nagłówki
+
+## Budowanie i uruchamianie kodu
+
+### kbuild
+
+Powszechnie rozprowadzane kopie jąrda Linux posiadają wbudowany system kompilowania i budowania jądra oraz ich modułów zwany kbuild. Jego dość obszerna dokumentacja znajduje się w folderze Documentation/kbuild. Z punktu widzenia projektu kluczową informacją jest sposób budowania modułów jądra. Znajduje się ona w pliku Documentation/kbuild/modules.txt.
+
+System kbuild zbudowany jest na podstawie narzędzia [GNU Make][b14] pozwala na zamknięcie wszystkich informacji niezbędnych do zbudowania modułu jądra w pliku Makefile. Jedyne co jest porzebne do jego działania to już skompilowany obraz jądra oraz pliki nagłówkowe użyte podczas jego kompilacji. System ten pozwala na kompilowania modułu zarówno bezpośrednio w drzewie jądra jak i w zupełnie odrębnym folderze. Kluczowe jest jedynie posiadanie kodu oraz obrazu jądra w folderze /usr/src/linux.
+
+Format plików Makefile używanych przez system kbuild jest bardzo uproszczony i nie musi zawierać normalnych wpisów definiujących cele kompilacji oraz ich zależności wraz z poleceniem który skompiluje dany cel. Zamyka on wszystkie niezbędne informacje w dwóch podstawowych zmiennych. Oto lekko okrojony plik Makefile użyty do kompilacji modułu skłądającego się na projekt:
+
+    DEBUG 		:= -g
+    WARN   		:= -Wall -Wstrict-prototypes -Wmissing-prototypes
+    NOWARN 		:= -Wno-unused-function
+    INCLUDE 	:= -I$(src)/../include/
+    ccflags-y 	:= -O ${WARN} ${NOWARN} ${DEBUG} ${INCLUDE}
+
+    obj-m       := netdev
+	netdev-objs := fo_access.o fo_send.o fo_recv.o fo_comm.o fo.o netdevmgm.o netlink.o main.o
+
+Kluczowymi zmiennymi są obj-m oraz netdev-objs. Zmienna obj-m definiuje głowny cel kompilacji czyli nasz końcowy moduł jądra. Zmienna netdev-objs definiuje zależności niezbędne do zbudowania pliku końcowego czyli netdev.o oraz po połączeniu plików składowych plik modułu netdev.ko. Wszystkie wymienione pliki binarne muszą posiadać takie same nazwy plików jak ich pliki źródłowe z jedyną różnicą w postaci rozszeżenia pliku. Dzięki temu system kbuild może łatwo znaleźć pliki źródłowe fo_access.c oraz fo_access.h potrzebne do zbudowania pliku fo_access.o składającego się na końcowy moduł.
+
+Zmienna ccflags-y pozwala programiście na przekazanie dodatkowych parametrów, które mają być użyte przez GCC, domyslny kompilator jądra, podczas budowania modułu. W skład tej zmiennej wchodzą inne zmienne w celu ułatwienia organizacji. W przypadku zmiennej WARN dodawany jest szereg opcji zwiększających czułość kompilatora na niezgodności ze standardem języka C w celu wyłapania jakichkolwiek potencjalnych problemów. Zmienna NOWARN pozbywa się ostrzeżeń na temat nie użytych funkcji.
+
+Dodatkowo przy pomocy zmiennej INCLUDE i zawartej w niej opcji "-I" włączany jest katalog 'include' potrzebny w kompilacji z uwagi na rozdzielenie kodu na część modułu oraz programu serwera. Folder 'include' który znajduje się poniżej katalogów z kodem modułu oraz serwera zawiera przede wszystkim plik nagłówkowy protocol.h, który definiuje szereg stałych wartości niezbędnych do prawidłowej komunikacji po gniazdach Netlink jak i TCP/IP. Bez niego nie dało by się skompilować ani modułu jądra ani serwera.
+
+Z tak zdefiniowanem plikiem Makefile znajdującym się w folderze z kodem modułu jądra programista musi jedynie wywołać program make. Wynikiem tej operacji będzie pełen zestaw plików binarnych z rozszrrzeniem .o oraz plik końcowy modułu netdev.ko, który jest gotowy do załadowania do pamięci systemu i rozpoczecia pracy.
+
+Warto wspomnieć iż program make bierze argument "-j" który pozwala na podanie ilości procesów jakie może narzędzie make stworzyć w celu szybszego skompilowania kodu źródłowego na maszynach z wieloma procesorami lub rdzeniami.
+
+### insmod i rmmod
+
+W celu załadowania modułu do pamięci systemu i uruchomienia go w systemach GNU/Linux tradycyjnie używa się narzędzia modprobe. Jest to dość rozbudowany program, które potrafi zweryfikować czy moduł podany jako argument posiada jakiekolwiek zależności w postaci innych modułów jądra i załadować je w prawidłowej kolejności. Przyjmuje on również jako argument jedynie nazwę modułu.
+
+Na potrzeby odnalezienia praiwłowego pliku modułu korzysta on z plików generowanych przez system kbuild umieszcanych w folderze /lib/modules/[KERNEL_VERSION]. Kluczowymi plikami są modules.alias, modules.dep oraz modules.symbols. Przy ich użyciu zapewnia on bezbolesne zarządzanie modułami na potrzeby używanego obrazu jądra.
+
+Niestety narzędzie to nie potrafi ładować modułów, które zostały zbudowane poza procesem kompilacji który stworzył używany przez system obraz jądra. W tym celu programista musi użyć znacznie prostszego narzędzia o nazwie insmod. Jego jedyną funkcją jest załadowanie i uruchomienie modułu jądra. Jako argument przyjmuje on ścieżkę do pliku modułu z rozszerzeniem .ko oraz może również przyjąć zestaw opcji jeżeli dany moduł takowe definiuje.
+
+W celu usunięcia działającego modułu z systemu programista może użyć kolejnego bardzo prostego narzędzia o nazwie rmmod. Przyjmuje ono jako argument nazwę modułu i kilka prostych paramatrów takich jak "-f" w celu wymuszenia usunięcia modułu. Oczywiście moduł nie zostanie usunięty jeżeli nie przeprowadzi on poprawnie procesu wyjścia i nie zwolni wszystkich zarezerwowanych przez siebie zasobów.
+
+Narzędzia insmod jak i rmmod dostarczają bardzo okrojone komunikaty o błędach. W celu zrozumienia problemu potrzebne jest raczej odczytanie komunikatów systemowych dostępnych przy pomocy komendy dmesg lub w pliku /var/log/messages.
 
 ## Kluczowe struktury danych
 ### netdev_data
@@ -361,6 +394,7 @@ W przyszłości możliwe będzie rozszerzenie kodu o warstwę zapewniającą pop
 [b11]: http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html#s4 "Inline Assembly HOWTO"
 [b12]: "Linux Kernel - Przewodnik Programisty", str 98-99 i 365-370, Robert Love
 [b13]: https://www.gnu.org/software/libc/ "The GNU C Library"
+[b14]: https://www.gnu.org/software/make/ "GNU Make"
 
 # Dodatki
 ## Zawartość CD
