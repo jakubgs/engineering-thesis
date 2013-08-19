@@ -299,8 +299,50 @@ W przyszłości możliwe będzie rozszerzenie kodu o warstwę zapewniającą pop
 # Implementacja (70%)
 
 ## Podział kodu
-### Pliki
+
+Z uwagi na to żę projekt jest podzielony na dwa podstawowe elementy, moduł jądra oraz serwer, ważne jest aby rozdzielić ich kod w logiczny sposób aby ułatwić organizacje pracy oraz kompilacje przy pomocy narzędzia make.
+
+Całość rozdzielona jest na trzy foldery:
+
+    * include - Katalog ten zawiera w sobie pliki nagłówkowe, które definiują wartości niezbędne do kompilacji modułu jądra oraz programu serwera. W obu przypadkach plik Makefile zawiera dodatkowy wpis włączający ten katalog do proceu kompilacji
+    * kernel - Tutaj znajduje się cały kod modułu jądra oraz plik Makefile definiujący proces kompilacji tego modułu.
+    * server - Posiada wszystkie pliki źródłowe składające się na program serwera oraz plik Makefile pozwalający go zbudować. Tutaj znajduje się również przykłądowy plik server.conf przedstawiający sposób konfiguracji programu.
+
+Dodatkowo w głównym katalogu znajduje się plik README.md napisany w formacie [Markdown][b15] dający potencjalnym użytkownikom podstawowe informacje na temat kompilacji oraz użytkowania oprogramowania.
+
+### Kod modułu jądra
+
+Kod modułu jest podzielony na szereg plików źródłowych na podstawie ich funkcji. Oto prosty opis każdego z nich:
+
+    * dbg.h - Definiuje makro debug() używane podczas rozwijania kodu.
+    * netdev.h - Definicje wszystkich kluczowych stałych i limiteów w kodzie modułu.
+    * main.c - Pierwszy i ostatni kod uruchamiany w trakcie działania modułu czyli funkcje init oraz exit.
+    * fo.c, fo.h - Definiuje główną strukturę file_operations używaną do tworzenia wszystkich urządzeń-atrap.
+    * netdevmgm.c, netdevmgm.h - Kod zarządzający każdym urządzeniem atrapą oraz serwerem.
+    * netlink.c, netlink.h - Kod odpowiedzialny za odbieranie i wysyłanie danych  przez gniazdo netlink.
+    * fo_access.c, fo_access.h - Definiuje kod zarządzający jednym procesem używającym jednego z urządzeń-atrap.
+    * fo_comm.c, fo_comm.h - Kod, który zarządza protokołem komunikacji pomiędzy serwerem a klientem.
+    * fo_recv.c, fo_recv.h - Funkcje wykonujące operacje plikowe na rzeczywistym urządzeniu po stronie serwera.
+    * fo_send.c, fo_send.h - Funkcje odbierające operacje plikowe na urządzeniu-atrapie.
+
+Podział ten stanie się jaśniejszy gdy wytłumaczone zostaną główne struktury użyte w kodzie jądra.
+
+### Kod serwera
+
+Tak samo jak moduł jądra, kod serwera jest również podzielony na poszczególne pliki w celu łatwiejszej organizacji:
+
+    * netprotocol.h - Definiuje format nagłówka każdej wiadomości przesłanej pomiędzy klientem a serwerem.
+    * main.c - Kod, który analizuje argumenty z konsoli, wczytuje plik konfiguracji oraz uruchamia połączenia klienckie zdefiniowane w pliku konfiguracyjnym oraz nasłuchiwanie nowych połączeń.
+    * conn.c, conn.h - Wszystko odpowiedzialne za komunikacje pomiędzy klientem a serwerem.
+    * netlink.c, netlink.h - Wszystko odpowiedzialne za komunikację z modułem jądra przez gniazdo Netlink.
+    * proxy.c, proxy.h - Główny kod pętli odbierający komunikaty przesyłane pomiędzy klientem a serwerem.
+    * signal.c, signal.h - Kod odpowiedzialny za obsługiwanie sygnałów systemowych w bezpieczny sposób.
+
 ### Wspólne nagłówki
+
+Jedynym wspólnym plikiem nagłówkowym jest plik include/protocol.h definiujący szereg stalych wartości, które mają bezpośredni wpływ na sposób komunikacji modułów z programami serwerowymi oraz pomiędzy serwerem oraz klientem. Między innymi definiuje on domyslny numer portu serwera przy pomocy definicji makra NETDEV_SERVER_PORT ustawionego na wartość 9999 oraz zestaw rodzajów komunikatów jakie mogą być przesyłane jako makra zaczynające się od MSGT_.
+
+Wprowadzając jakiekolwiek zmiany do wartości zdefiniowanym w tym pliku należy zwiększyć wartość NETDEV_PROTOCOL_VERSION o jeden aby zapobiec błędom spowodowanym przez komunikację serwera i klienta o różnych wersjach protokołu.
 
 ## Budowanie i uruchamianie kodu
 
@@ -395,6 +437,7 @@ Narzędzia insmod jak i rmmod dostarczają bardzo okrojone komunikaty o błędac
 [b12]: "Linux Kernel - Przewodnik Programisty", str 98-99 i 365-370, Robert Love
 [b13]: https://www.gnu.org/software/libc/ "The GNU C Library"
 [b14]: https://www.gnu.org/software/make/ "GNU Make"
+[b15]: http://daringfireball.net/projects/markdown/ "Markdown format"
 
 # Dodatki
 ## Zawartość CD
