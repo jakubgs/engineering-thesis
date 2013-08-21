@@ -16,7 +16,9 @@ Projekt ten ilustruje wiele kluczowych modeli oraz standardów zdefiniowanych pr
 
 ## Funkcjonalność
 
-Sterownik jądra ma na celu stworzenie urządzenia-atrapy które będzie udawać w systemie rzeczywiste urządzenia fizyczne. Program serwerowy ma na celu odbieranie jakichkolwiek operacji wykonywanych na danym urządzeniu-atrapie i przekazanie ich do kolejnej instancji programu na zdalnej maszynie na której znajduje się rzeczywiste urządzenie które może odpowiedzieć na zapytania in wykonane operacje na urządzeniu-atrapie.
+Sterownik jądra ma na celu stworzenie urządzenia-atrapy które będzie udawać w systemie rzeczywiste urządzenia fizyczne. Program serwerowy ma na celu odbieranie jakichkolwiek operacji wykonywanych na danym urządzeniu-atrapie i przekazanie ich do kolejnej instancji programu na zdalnej maszynie, na której znajduje się rzeczywiste urządzenie, które może odpowiedzieć na zapytania in przesłać wyniki z powrotem do urządzeniu-atrapy.
+
+Z powodu różnorodności funkcji jakie będzie wykonywał program z przestrzeni użytkownika oraz według tradycji systemów z rodziny Unix program ten będzie od teraz nazywany demonem. Dokładny podział funkcji jakie będzie wypełniał zostanie opisany w rozdziale "[Sposób implementacji programu demona]".
 
 ## Język programistyczny
 
@@ -26,11 +28,11 @@ Kod jadra nie jest jednak napisany w czystym C. Wiele kluczowych elementów jąd
 
 ## Biblioteki
 
-Wszystkie wywołania systemowe użyte w projekcie są częścią standardu POSIX. Implementacja komunikacji sieciowej jak i komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika korzysta ze standardowych bibliotek C środowiska operacyjnego GNU czyli [GLIBC][b13]. Żadne dodatkowe biblioteki nie zostały wykorzystane przy rozwoju tego projektu. Wszystkie niezbędne struktury danych takie jak tablice haszujące czy kolejki FIFO(First In, First Out) mają swoje ogólne implementacje dostępne bezpośrednio w nagłówkach jądra Linux. Do implementacji programu serwera zostały wykorzystane podstawowe funkcje interfejsu gniazd BSD dostępne w systemie Linux czyli `sendmsg`, `recvmsg` oraz `select`. Serializacja danych danych oraz implementacja protokołu komunikacji zostały zaimplementowane własnoręcznie bez użycia dodatkowych bibliotek.
+Wszystkie wywołania systemowe użyte w projekcie są częścią standardu POSIX. Implementacja komunikacji sieciowej jak i komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika korzysta ze standardowych bibliotek C środowiska operacyjnego GNU czyli [GLIBC][b13]. Żadne dodatkowe biblioteki nie zostały wykorzystane przy rozwoju tego projektu. Wszystkie niezbędne struktury danych takie jak tablice haszujące czy kolejki FIFO(First In, First Out) mają swoje ogólne implementacje dostępne bezpośrednio w nagłówkach jądra Linux. Do implementacji programu demona, zostały wykorzystane podstawowe funkcje interfejsu gniazd BSD dostępne w systemie Linux czyli `sendmsg`, `recvmsg` oraz `select`. Serializacja danych danych oraz implementacja protokołu komunikacji zostały zaimplementowane własnoręcznie bez użycia dodatkowych bibliotek.
 
 ## Interfejs
 
-Interfejs przez jaki potencjalny użytkownik będzie mógł korzystać z tego oprogramowania przyjmuje dwa podstawowe sposoby zarządzania oprogramowaniem w systemach z rodziny Unix czyli tekstowe pliki konfiguracyjne oraz argumenty przekazywane bezpośrednio do programu serwera.
+Interfejs przez jaki potencjalny użytkownik będzie mógł korzystać z tego oprogramowania przyjmuje dwa podstawowe sposoby zarządzania oprogramowaniem w systemach z rodziny Unix czyli tekstowe pliki konfiguracyjne oraz argumenty przekazywane bezpośrednio do programu demona.
 
 ### Argumenty
 ### Plik konfiguracyjny
@@ -41,11 +43,11 @@ Interfejs przez jaki potencjalny użytkownik będzie mógł korzystać z tego op
 
 # Teoria
 
-* definicja rozważanego zagadnienia
+Głównym tematem tej pracy jest przestrzeń jądra Linux oraz sposób w jaki obchodzi się ona z urządzeniami fizycznymi, przede wszystkim z urządzeniami znakowymi. Aby zrozumieć to zagadnienie niezbędne jest przedstawienie kilku podstawowych metod i abstrakcji, przy pomocy których jądro Linux obsługuje urządzenia. Kluczową kwestią jest zrozumienie roli plików i ich relacji do urządzeń w systemie GNU/Linux.
 
 ## Urządzenia jako pliki
 
-Tradycyjnie systemu Unix oraz jego pochodne - takie jak GNU/Linux - traktował wszystkie zasoby, które dało się odczytać lub zapisać w jednakowy sposób, czyli jako pliki. Bez względu na to czy dany zasób jest dokumentem tekstowym, dyskiem, klawiaturą, kartą dźwiękową czy gniazdem sieciowym jest on reprezentowany w systemie jako plik. Chociaż poprawnie należało by powiedzieć, iż jest reprezentowany jako deskryptor pliku od momentu, w którym jakiś proces otworzy dany plik w celu skorzystania z jego zasobów.
+Tradycyjnie systemu Unix oraz jego pochodne - takie jak GNU/Linux - traktował wszystkie zasoby, które dało się odczytać lub zapisać, w jednakowy sposób, czyli jako pliki. Bez względu na to czy dany zasób jest dokumentem tekstowym, dyskiem, klawiaturą, kartą dźwiękową czy gniazdem sieciowym jest on reprezentowany w systemie jako plik. Chociaż poprawnie należało by powiedzieć, iż jest reprezentowany jako deskryptor pliku od momentu, w którym jakiś proces otworzy dany plik w celu skorzystania z jego zasobów.
 
 Istnieje siedem podstawowych typów plików:
 
@@ -67,13 +69,13 @@ Wirtualny system plików znany przede wszystkim pod skrótem VFS(Virtual File Sy
 
 Dzięki wprowadzeniu tego modelu wszystkie sterowniki poszczególnych systemów plików muszą implementować konkretny zestaw struktur oraz funkcji, które w sposób zupełnie przezroczysty pozwalają wszystkim pozostałym elementom systemu na korzystanie z zasobów znajdujących się w tych systemach plików bez zastanawiania się na różnicami pomiędzy poszczególnymi implementacjami, formatem danych czy rodzajem nośnika na którym przechowywane są owe dane. Bez względu na to jak rzeczywiście działa dany system plików, musi on przedstawiać swoje dane przy użyciu czterech podstawowych obiektów zdefiniowanych przez model VFS:
 
-* Blok główny(superblock) - Jest to obiekt który zbiera w sobie wszystkie informacje o plikach i strukturze katalogów znajdujących się w danym systemie plików, jak i również jego rodzaj, przypisane do niego urządzenie oraz listę operacji które można wykonać na danym systemie plików. Blok główny bardzo często jest przechowywany w specjalnie do tego przeznaczonym sektorze dysku lub innego nośnika i posiada wszystkie informacje potrzebne by zlokalizować dane składające się na wybrany plik na przestrzeni całego nośnika. Systemy plików nie przywiązane do żadnego urządzenia fizycznego nadal muszą stworzyć obiekt bloku głównego i przechowywać go w pamięci jądra jeżeli chcą w jakimkolwiek wymiarze udostępniać swoje usługi jądru oraz procesom przestrzeni użytkownika. Blog główny definiowany jest jako struktura `super_block`.
+* Blok główny(Superblock) - Jest to obiekt który zbiera w sobie wszystkie informacje o plikach i strukturze katalogów znajdujących się w danym systemie plików, jak i również jego rodzaj, przypisane do niego urządzenie oraz listę operacji które można wykonać na danym systemie plików. Blok główny bardzo często jest przechowywany w specjalnie do tego przeznaczonym sektorze dysku lub innego nośnika i posiada wszystkie informacje potrzebne by zlokalizować dane składające się na wybrany plik na przestrzeni całego nośnika. Systemy plików nie przywiązane do żadnego urządzenia fizycznego nadal muszą stworzyć obiekt bloku głównego i przechowywać go w pamięci jądra jeżeli chcą w jakimkolwiek wymiarze udostępniać swoje usługi jądru oraz procesom przestrzeni użytkownika. Blog główny definiowany jest jako struktura `super_block`.
 
 * i-węzeł(i-node) - Każdy otwarty plik oraz katalog znajdujący się w obrębie konkretnego systemu plików reprezentowany jest przez jeden egzemplarz tego obiektu. Zbiera on w sobie wszystkie informacje potrzebne do manipulowania plikami i istnieje on tak długo jak długo plik lub katalog jest używany przez jakikolwiek proces w systemie. Obiekt i-węzła opisuje dowolny plik, bez względu na to czy jest to zwykły plik na dysku, plik strumienia danych, urządzenie z systemu plików `/dev` czy plikowa reprezentacja atrybutów sterowników w systemie plików `/sys`. Zawiera on w sobie informacje o czasie stworzenia i modyfikacji, prawa dostępu, właścicielu, rozmiarze pliku i wiele innych informacji niezbędnych procesom do wykonywania na nich operacji. Warto od razu zwrócić uwagę, iż w systemach z rodziny Unix takich jak Linux katalogi są po prostu specyficznym rodzajem pliku, w związku z tym i-węzeł opisuje zarówno pliki jak i katalogi. Struktura która definiuje ten obiekt nazywa się `inode`.
 
-* Wpis katalogowy(dentry) - Obiekt ten jest przeznaczony raczej do ułatwienia wyszukiwania danych w hierarchicznej strukturze katalogowej wielu systemów plików niż do opisywania rzeczywistych obiektów znajdujących się w pojedynczym systemie plików. Każdy program przestrzeni użytkownika musi korzystać ze ścieżki dostępu jeżeli chce się dostać do jakiegokolwiek zasobu w systemie plików. Przykładową ścieżką dostępu do pliku znajdującego się na płycie CD jest `/mnt/cdrom/README.txt`. W tej ścieżce dostępu znajdują się cztery wpisy katalogowe: `/`, `mnt`, `cdrom` oraz `README.txt`. Trzy pierwsze obiekty, `/` przedstawiający katalog-korzeń i `mnt` katalog znajdujący się w korzeniu oraz `cdrom` zawierający się w katalog `mnt`, znajdują się na systemie plików ext4. Jednak sam plik `README.txt` znajduje się w systemie plików płyty CDROM, ISO9660. Jądro utrzymuje bufor wpisów katalogowych, który zbiera w miarę jak procesy otwierają i używają plików dostępnych w systemie. Utrzymywanie tego typu bufora znacznie przyspiesza otwieranie wcześniej otwartych zasobów. Wpisy te reprezentowane się przez strukturę `dentry`.
+* Wpis katalogowy(Dentry) - Obiekt ten jest przeznaczony raczej do ułatwienia wyszukiwania danych w hierarchicznej strukturze katalogowej wielu systemów plików niż do opisywania rzeczywistych obiektów znajdujących się w pojedynczym systemie plików. Każdy program przestrzeni użytkownika musi korzystać ze ścieżki dostępu jeżeli chce się dostać do jakiegokolwiek zasobu w systemie plików. Przykładową ścieżką dostępu do pliku znajdującego się na płycie CD jest `/mnt/cdrom/README.txt`. W tej ścieżce dostępu znajdują się cztery wpisy katalogowe: `/`, `mnt`, `cdrom` oraz `README.txt`. Trzy pierwsze obiekty, `/` przedstawiający katalog-korzeń i `mnt` katalog znajdujący się w korzeniu oraz `cdrom` zawierający się w katalog `mnt`, znajdują się na systemie plików ext4. Jednak sam plik `README.txt` znajduje się w systemie plików płyty CDROM, ISO9660. Jądro utrzymuje bufor wpisów katalogowych, który zbiera w miarę jak procesy otwierają i używają plików dostępnych w systemie. Utrzymywanie tego typu bufora znacznie przyspiesza otwieranie wcześniej otwartych zasobów. Wpisy te reprezentowane się przez strukturę `dentry`.
 
-* Plik(file) - Tak jak i-węzeł reprezentuje każdy przynajmniej raz otwarty plik w jądrze tak obiekt pliku reprezentuje plik otwarty przez konkretny proces. Obiekt ten istnieje tak długo jak dany proces korzysta z rzeczywistego pliku i zostaje skasowany gdy proces ten użyje wywołania close() na przypisanym do niego deskryptorze pliku(file descriptor). Posiada on odwołanie do odpowiedniego obiektu i-węzła oraz zbiór informacji przydatnych przy operowaniu na pliku takich jak obecna pozycja w pliku, tryb dostępu do pliku czy zestaw praw dostępu. Nazwa jego struktury to `file` i jest to reprezentacja deskryptora pliku, który otrzymuje proces wywołując funkcje `open()` w przestrzeni jądra.
+* Plik(File) - Tak jak i-węzeł reprezentuje każdy przynajmniej raz otwarty plik w jądrze tak obiekt pliku reprezentuje plik otwarty przez konkretny proces. Obiekt ten istnieje tak długo jak dany proces korzysta z rzeczywistego pliku i zostaje skasowany gdy proces ten użyje wywołania close() na przypisanym do niego deskryptorze pliku(file descriptor). Posiada on odwołanie do odpowiedniego obiektu i-węzła oraz zbiór informacji przydatnych przy operowaniu na pliku takich jak obecna pozycja w pliku, tryb dostępu do pliku czy zestaw praw dostępu. Nazwa jego struktury to `file` i jest to reprezentacja deskryptora pliku, który otrzymuje proces wywołując funkcje `open()` w przestrzeni jądra.
 
 Z punktu widzenia sterowników urządzeń najbardziej kluczowymi obiektami są i-węzły oraz pliki. Obiekt pliku posiada jedną z najważniejszych struktury w całym jądrze Linux o nazwie `file_operations`, zapisaną jako atrybut `f_op`, która posiada kolekcję wskaźników do funkcji które pozwalają wykonywać takie operacje jak `open`, `read`, `write` czy `close`. Wszystkie urządzenia znakowe oraz blokowe muszą implementować podstawowy zestaw operacji reprezentowany przez tą strukturę i prawie każda z nich bierze jako argument obiekt pliku. Niektóre biorą również obiekt i-węzła. Dzięki temu sterownik otrzymuje niezbędne informacje odnośnie tego, który plik urządzenia został otwarty.
 
@@ -197,7 +199,7 @@ Istnieje wiele powodów dla których nie należy robić tych rzeczy z przestrzen
 
 Dodatkowym problemem jest zagrożenie bezpieczeństwa jądra. Pobieranie danych prosto ze zdalnej lokalizacji do jądra jest wręcz jawnym zaproszeniem dla wszelkiego rodzaju złośliwych użytkowników sieci do próby wykorzystania naszego modułu w celu przejęcia kontroli nad naszym systemem. Jądro powinno być ostatnim bastionem bezpieczeństwa w systemie operacyjnym i wystawianie go dla publicznego dostępu przez sieć jest bardzo złą praktyką. Popełnienie takiego błędu jest wręcz gwarancją ze kod nie zostanie przyjęty do projektu jądra Linux i najprawdopodobniej programista taki zostanie pouczony na temat podstawowych zasad projektowania systemów operacyjnych.
 
-Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy. Przede wszystkim moduł jądra odpowiedzialny za stronę sprzętową oraz tworzenie urządzenia atrapy i odbieranie operacji plikowych na nim wykonanych. Drugim elementem będzie program przestrzeni użytkownika odpowiedzialny za wczytanie odpowiedniej konfiguracji, połączenie się z modułem jądra oraz zdalną maszyną i ustanowieniem połączenia pomiędzy oboma końcami transakcji. Dzięki takiemu modelowi wszystkie problemy związane z wczytywaniem konfiguracji, kontrolą modułu oraz bezpieczeństwem zostaną przeniesione do warstwy użytkownika co powinno znacznie uprościć kod modułu i przyspieszyć jego działanie oraz sprawić że końcowy produkt będzie bardziej elastyczny w użytkowaniu i konfiguracji. Poniżej przedstawiam prosty diagram opisujący przykładowe połączenie pomiędzy urządzeniem fizycznym udostępniającym swoje zasoby na maszynie serwerowej a urządzeniem-atrapą udającym rzeczywiste urządzenie na maszynie klienckiej:
+Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy. Przede wszystkim moduł jądra odpowiedzialny za stronę sprzętową oraz tworzenie urządzenia atrapy i odbieranie operacji plikowych na nim wykonanych. Drugim elementem będzie program przestrzeni użytkownika odpowiedzialny za wczytanie odpowiedniej konfiguracji, połączenie się z modułem jądra oraz zdalną maszyną i ustanowieniem połączenia pomiędzy oboma końcami transakcji. Dzięki takiemu modelowi wszystkie problemy związane z wczytywaniem konfiguracji, kontrolą modułu oraz bezpieczeństwem zostaną przeniesione do warstwy użytkownika co powinno znacznie uprościć kod modułu i przyspieszyć jego działanie oraz sprawić że końcowy produkt będzie bardziej elastyczny w użytkowaniu i konfiguracji. Poniżej przedstawiam prosty diagram opisujący przykładowe połączenie pomiędzy urządzeniem fizycznym udostępniającym swoje zasoby na maszynie udostępniającej urządzenie a urządzeniem-atrapą udającym rzeczywiste urządzenie na maszynie klienckiej:
 
                             Fizyczne urządzenie
                                     |
@@ -205,7 +207,7 @@ Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy.
                                     |
                                     |- Połączenie Netlink
                                     |
-                                  Serwer
+                                  Demon
                                     |
                                     |- Połączenie TCP/IP
                                     |
@@ -219,7 +221,7 @@ Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy.
 
 Przyjmując taki model organizacji rozszerza projekt o dodatkową warstwę komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika co w wyraźny sposób komplikuje proces komunikacji pomiędzy urządzeniem-atrapą a rzeczywistym fizycznym urządzeniem. Jest to jednak utrudnienie niezbędne biorąc pod uwagę polisy jakie rządzą rozwojem kodu jądra Linux. Jako że chcemy udostępniać urządzenia fizyczne za pośrednictwem tego oprogramowania kluczowa jest wysoka przepustowość w przesyłaniu dużych ilości danych i niezawodność, która zapewni że żadna operacja na pliku nie zostanie pominięta podczas przesyłania. Dokładny opis wyboru metody komunikacji znajduje się w rozdziale "[Komunikacja z przestrzenią użytkownika]".
 
-Dodatkowo w celu zmniejszenia nakładu pracy kosztem małego zwiększenia złożoności kodu podjęta została decyzja aby zaimplementować jeden moduł jądra, który będzie odpowiedzialny za urządzenie atrapę po stronie klienta oraz rzeczywiste urządzenie po stronie serwera i jeden program przestrzeni użytkownika, który analogicznie będzie wypełniał rolę serwera oraz klienta jednocześnie. Powinno to znacznie zmniejszyć ilość linijek kodu niezbędnych do ukończenia tego projektu. Powinno to również uprości konfiguracje dla potencjalnych użytkowników z uwagi na prosty podział oprogramowania na moduł jądra oraz serwer.
+Dodatkowo w celu zmniejszenia nakładu pracy kosztem małego zwiększenia złożoności kodu podjęta została decyzja aby zaimplementować jeden moduł jądra, który będzie odpowiedzialny za urządzenie atrapę po stronie klienta oraz rzeczywiste urządzenie po stronie serwera i jeden program przestrzeni użytkownika, który analogicznie będzie wypełniał rolę serwera oraz klienta jednocześnie. Powinno to znacznie zmniejszyć ilość linijek kodu niezbędnych do ukończenia tego projektu. Powinno to również uprości konfiguracje dla potencjalnych użytkowników z uwagi na prosty podział oprogramowania na moduł jądra oraz demona.
 
 # Decyzje projektowe
 
@@ -263,7 +265,7 @@ Oto struktura `nlmsghdr` niezbędnego nagłówka każdej wiadomości Netlink:
 
 Struktura ta pozwala na łatwą organizacje własnego protokołu komunikacji przy użyciu indywidualnych wiadomości o konkretnym rodzaju, numerze identyfikacyjnym, adresie źródłowym oraz zestawie flag które pozwalają na rozdzielanie dużych wiadomości na części lub żądanie o wiadomości potwierdzające fakt odebrania przekazu po drugiej stronie pary gniazd.
 
-Dodatkowo pokrewieństwo gniazd Netlink z gniazdami TCP/IP jest kolejnym ułatwienie pozwalającym na łatwe przekazywanie komunikatów odebranych z jednego rodzaju gniazda do drugiego. Powinno to znacznie uprościć implementacje procesu serwera odpowiedzialnego za przekazywanie wszystkich operacji plikowych wywołanych w module jądra do zdalnej maszyny posiadającej fizyczny egzemplarz udostępnianego urządzenia. Jest to idealne rozwiązanie na potrzeby tego projektu.
+Dodatkowo pokrewieństwo gniazd Netlink z gniazdami TCP/IP jest kolejnym ułatwienie pozwalającym na łatwe przekazywanie komunikatów odebranych z jednego rodzaju gniazda do drugiego. Powinno to znacznie uprościć implementacje procesu demona odpowiedzialnego za przekazywanie wszystkich operacji plikowych wywołanych w module jądra do zdalnej maszyny posiadającej fizyczny egzemplarz udostępnianego urządzenia. Jest to idealne rozwiązanie na potrzeby tego projektu.
 
 ### Komunikacja ze zdalną maszyną
 
@@ -281,7 +283,7 @@ Problem z UDP polega na tym, iż sama aplikacja jest teraz odpowiedzialna za obs
 
 Pomimo tego że UDP jest powszechnie używane w wielu protokołach kluczowych dla działania sieci lokalnych oraz całego internetu takich jak DNS, DHCP, SNMP czy wiele protokołów dynamicznego routingu to wielu programistów odradza używania UDP w aplikacjach użytkowych. Istnieje tylko kilka konkretnych przykładów, w których szybkość komunikacji jest tak kluczowa, iż UDP jest naprawdę jedynym sensownym wyjściem. Głównym zastosowaniem jest komunikacja wideo oraz audio między ludźmi w czasie rzeczywistym. W większości innych przypadków UDP powoduje więcej problemów niż rozwiązuje.
 
-Z uwagi na to podjęta została decyzja by użyć protokołu TCP w implementacji serwera który będzie przekazywał operacje na plikach urządzeń znakowych. Ponieważ absolutnie kluczowa jest kolejność w jakiej wykonywane są operacje na urządzeniach fizycznych i pominięcie jednej lub więcej operacji może mieć absolutnie katastrofalne skutki gwarancja jaką daje TCP jeżeli chodzi o dostarczenie wysłanych wiadomości jest niezbędna do poprawnego działania tego oprogramowania.
+Z uwagi na to podjęta została decyzja by użyć protokołu TCP w implementacji demona, który będzie przekazywał operacje na plikach urządzeń znakowych. Ponieważ absolutnie kluczowa jest kolejność w jakiej wykonywane są operacje na urządzeniach fizycznych i pominięcie jednej lub więcej operacji może mieć absolutnie katastrofalne skutki gwarancja jaką daje TCP jeżeli chodzi o dostarczenie wysłanych wiadomości jest niezbędna do poprawnego działania tego oprogramowania.
 
 ## Rozwiązanie problemu serializacji
 
@@ -295,7 +297,7 @@ Jądro Linux praktycznie od zawsze używa układu bajtów little-endian i więks
 
 W przyszłości możliwe będzie rozszerzenie kodu o warstwę zapewniającą poprawną serializacje wszystkich danych przed przesłaniem ich z jednego modułu jądra za pośrednictwem programu serwera do drugiego modułu jądra na zdalnej maszynie.
 
-## Sposób implementacji programu serwera
+## Sposób implementacji programu demona
 
 Z uwagi na to że podjęta została decyzja aby zamknąć funkcjonalność serwera oraz klienta w jednym programie przestrzeni użytkownika, który nazywać będziemy demonem, kluczowe jest rozdzielenie poszczególnych funkcji pomiędzy odrębne procesy. W przypadku normalnych programów udostępniających różnego rodzaju usługi rozsądnym pomysłem jest użycie wątków jako że zarządzanie nimi jest dość proste dzięki bibliotece wątków POSIX zwanej [pthread][b16]. Niestety specyfika naszego programu wynikająca z potrzeby komunikowania się z przestrzenią jądra za pośrednictwem gniazd Netlink sprawia że niezbędnym jest aby wątki komunikujące się z jądrem posiadały swój własny odrębny identyfikator procesu(PID). W przypadku systemów GNU/Linux wątki współdzielą identyfikator procesu z procesem macierzystym, który jest stworzył. Z tego powodu użycie wątków POSIX jest niemożliwe.
 
@@ -316,13 +318,13 @@ Daje to nam dwie kategorie procesów:
 
 ## Podział kodu
 
-Z uwagi na to że projekt jest podzielony na dwa podstawowe elementy, moduł jądra oraz serwer, ważne jest aby rozdzielić ich kod w logiczny sposób aby ułatwić organizacje pracy oraz kompilacje.
+Z uwagi na to że projekt jest podzielony na dwa podstawowe elementy, moduł jądra oraz demon, ważne jest aby rozdzielić ich kod w logiczny sposób aby ułatwić organizacje pracy oraz kompilacje.
 
 Całość rozdzielona jest na trzy foldery:
 
-* `include` - Katalog ten zawiera w sobie pliki nagłówkowe, które definiują wartości niezbędne do kompilacji modułu jądra oraz programu serwera. W obu przypadkach plik `Makefile` zawiera dodatkowy wpis włączający ten katalog do procesu kompilacji
+* `include` - Katalog ten zawiera w sobie pliki nagłówkowe, które definiują wartości niezbędne do kompilacji modułu jądra oraz programu demona. W obu przypadkach plik `Makefile` zawiera dodatkowy wpis włączający ten katalog do procesu kompilacji
 * `kernel` - Tutaj znajduje się cały kod modułu jądra oraz plik `Makefile` definiujący proces kompilacji tego modułu.
-* `server` - Posiada wszystkie pliki źródłowe składające się na program serwera oraz plik `Makefile` pozwalający go zbudować. Tutaj znajduje się również przykładowy plik `server.conf` przedstawiający sposób konfiguracji programu.
+* `daemon` - Posiada wszystkie pliki źródłowe składające się na program demona oraz plik `Makefile` pozwalający go zbudować. Tutaj znajduje się również przykładowy plik `server.conf` przedstawiający sposób konfiguracji programu.
 
 Dodatkowo w głównym katalogu znajduje się plik `README.md` napisany w formacie [Markdown][b15] dający potencjalnym użytkownikom podstawowe informacje na temat kompilacji oraz użytkowania oprogramowania.
 
@@ -334,16 +336,16 @@ Kod modułu jest podzielony na szereg plików źródłowych na podstawie ich fun
 * `netdev.h` - Definicje wszystkich kluczowych stałych i limitów w kodzie modułu.
 * `main.c` - Pierwszy i ostatni kod uruchamiany w trakcie działania modułu czyli funkcje `init` oraz `exit`.
 * `fo.c, fo.h` - Deklaruje główną strukturę `file_operations` używaną do tworzenia wszystkich urządzeń-atrap.
-* `netdevmgm.c, netdevmgm.h` - Kod zarządzający każdym urządzeniem atrapą oraz serwerem.
+* `netdevmgm.c, netdevmgm.h` - Kod zarządzający każdym urządzeniem atrapą oraz urządzeniem serwerem.
 * `netlink.c, netlink.h` - Kod odpowiedzialny za odbieranie i wysyłanie danych  przez gniazdo netlink.
 * `fo_access.c, fo_access.h` - Definiuje kod zarządzający jednym procesem używającym jednego z urządzeń-atrap.
 * `fo_comm.c, fo_comm.h` - Kod, który zarządza protokołem komunikacji pomiędzy serwerem a klientem.
 * `fo_recv.c, fo_recv.h` - Funkcje wykonujące operacje plikowe na rzeczywistym urządzeniu po stronie serwera.
 * `fo_send.c, fo_send.h` - Funkcje odbierające operacje plikowe na urządzeniu-atrapie.
 
-### Kod serwera
+### Kod demona
 
-Tak samo jak moduł jądra, kod serwera jest również podzielony na poszczególne pliki w celu łatwiejszej organizacji:
+Tak samo jak moduł jądra, kod demona jest również podzielony na poszczególne pliki w celu łatwiejszej organizacji:
 
 * `netprotocol.h` - Definiuje format nagłówka każdej wiadomości przesłanej pomiędzy klientem a serwerem.
 * `main.c` - Kod, który analizuje argumenty z konsoli, wczytuje plik konfiguracji oraz uruchamia połączenia klienckie zdefiniowane w pliku konfiguracyjnym oraz nasłuchiwanie nowych połączeń.
@@ -354,7 +356,7 @@ Tak samo jak moduł jądra, kod serwera jest również podzielony na poszczegól
 
 ### Wspólne nagłówki
 
-Jedynym wspólnym plikiem nagłówkowym jest plik `include/protocol.h` definiujący szereg stałych wartości, które mają bezpośredni wpływ na sposób komunikacji modułów z programami serwerowymi oraz pomiędzy serwerem oraz klientem. Między innymi definiuje on domyślny numer portu serwera przy pomocy definicji makra `NETDEV_SERVER_PORT` ustawionego na wartość 9999 oraz zestaw rodzajów komunikatów jakie mogą być przesyłane jako makra zaczynające się od `MSGT`.
+Jedynym wspólnym plikiem nagłówkowym jest plik `include/protocol.h` definiujący szereg stałych wartości, które mają bezpośredni wpływ na sposób komunikacji modułu z programem demona oraz pomiędzy serwerem oraz klientem. Między innymi definiuje on domyślny numer portu demona przy pomocy definicji makra `NETDEV_SERVER_PORT` ustawionego na wartość 9999 oraz zestaw rodzajów komunikatów jakie mogą być przesyłane jako makra zaczynające się od `MSGT`.
 
 Wprowadzając jakiekolwiek zmiany do wartości zdefiniowanym w tym pliku należy zwiększyć wartość `NETDEV_PROTOCOL_VERSION` o jeden aby zapobiec błędom spowodowanym przez komunikację serwera i klienta o różnych wersjach protokołu.
 
@@ -382,7 +384,7 @@ Kluczowymi zmiennymi są `obj-m` oraz `netdev-objs`. Zmienna `obj-m` definiuje g
 
 Zmienna `ccflags-y` pozwala programiście na przekazanie dodatkowych parametrów, które mają być użyte przez GCC, domyślny kompilator jądra, podczas budowania modułu. W skład tej zmiennej wchodzą inne zmienne w celu ułatwienia organizacji. W przypadku zmiennej WARN dodawany jest szereg opcji zwiększających czułość kompilatora na niezgodności ze standardem języka C w celu wyłapania jakichkolwiek potencjalnych problemów. Zmienna `NOWARN` pozbywa się ostrzeżeń na temat nie użytych funkcji.
 
-Dodatkowo przy pomocy zmiennej INCLUDE i zawartej w niej opcji `-I` włączany jest katalog `include`, który znajduje się poniżej katalogów z kodem modułu oraz serwera zawiera przede wszystkim plik nagłówkowy protocol.h definiujący szereg stałych wartości niezbędnych do prawidłowej komunikacji po gniazdach Netlink jak i TCP/IP. Bez niego nie dało by się skompilować ani modułu jądra ani serwera.
+Dodatkowo przy pomocy zmiennej INCLUDE i zawartej w niej opcji `-I` włączany jest katalog `include`, który znajduje się poniżej katalogów z kodem modułu oraz demona zawiera przede wszystkim plik nagłówkowy protocol.h definiujący szereg stałych wartości niezbędnych do prawidłowej komunikacji po gniazdach Netlink jak i TCP/IP. Bez niego nie dało by się skompilować ani modułu jądra ani demona.
 
 Z tak zdefiniowanym plikiem `Makefile` znajdującym się w folderze z kodem modułu jądra programista musi jedynie wywołać program make. Wynikiem tej operacji będzie pełen zestaw plików binarnych z rozszerzeniem `.o` oraz plik końcowy modułu `netdev.ko`, który jest gotowy do załadowania do pamięci systemu i rozpoczęcia pracy.
 
@@ -424,7 +426,7 @@ Struktura `netdev_data` przedstawia pojedyncze urządzenie obsługiwane przez mo
         DECLARE_HASHTABLE(foacc_htable, NETDEV_HTABLE_ACC_SIZE);
     };
 
-Po pierwsze `nlpid` przechowuje identyfikator procesu(PID) serwera odpowiedzialnego za dane urządzenie i używany jest w komunikacji poprzez gniazdo Netlink, które identyfikuje przy jego pomocy źródło oraz cel odbieranych lub wysyłanych danych. Zmienna active mówi czy urządzenie jest gotowe obsługiwać operacje plikowe. Podczas tworzenia nowego urządzenia przyjmuje wartość `true` i zmienia się ona na `false` gdy sterownik straci kontakt z procesem serwera lub urządzenie jest w trakcie bycia usuwanym. Kolejna zmienna `dummy` definiuje czy urządzenie reprezentowane przez tą strukturę `netdev_data` to urządzenie-atrapa czy punkt dostępu do rzeczywistego urządzenia. Ta wartość nie zmienia się przez cały okres istnienia obiektu `netdev_data`. Tak samo niezmienna jest nazwa urządzenia znajdująca się zmiennej `devname`. Używana jest ona podczas tworzenia urządzenia-atrapy lub otwierania pliku rzeczywistego urządzenia.
+Po pierwsze `nlpid` przechowuje identyfikator procesu(PID) klienta lub serwera odpowiedzialnego za dane urządzenie i używany jest w komunikacji poprzez gniazdo Netlink, które identyfikuje przy jego pomocy źródło oraz cel odbieranych lub wysyłanych danych. Zmienna active mówi czy urządzenie jest gotowe obsługiwać operacje plikowe. Podczas tworzenia nowego urządzenia przyjmuje wartość `true` i zmienia się ona na `false` gdy sterownik straci kontakt z procesem klienta lub serwera lub urządzenie jest w trakcie bycia usuwanym. Kolejna zmienna `dummy` definiuje czy urządzenie reprezentowane przez tą strukturę `netdev_data` to urządzenie-atrapa czy punkt dostępu do rzeczywistego urządzenia. Ta wartość nie zmienia się przez cały okres istnienia obiektu `netdev_data`. Tak samo niezmienna jest nazwa urządzenia znajdująca się zmiennej `devname`. Używana jest ona podczas tworzenia urządzenia-atrapy lub otwierania pliku rzeczywistego urządzenia.
 
 Dwie zmienne `atomic_t` pozwalają na zmianę wartości w sposób atomowy, czyli zapewniający spójność danych na przestrzeni wielu wątków bez potrzeby korzystania z semaforów lub spinlocków. Zmienna `users`, które zlicza ilość referencji do danego obiektu `netdev_data` znajdujących się w różnych wątkach jądra lub strukturach danych pozwala na bezpieczne zwalnianie pamięci zarezerwowanej przez obiekt `netdev_data`. W przypadku gdy licznik referencji wynosi więcej niż jeden pamięć ta nie może być zwolniona gdyż sprawi to że wskaźnik do danego obiektu może spowodować próbę dostępu do pamięci, która nie należy do danego wątku i doprowadzić do paniki jądra. Zmienna `curseq` reprezentuje ostatnio użyty numer sekwencyjny użyty do synchronizowania kolejności wiadomości Netlink. Zmienna ta jest zwiększana o jeden za każdym razem gdy kolejna wiadomość jest wysyłana. Unikalność numeru sekwencyjnego umożliwia identyfikację oczekujących operacji plikowych.
 
@@ -445,7 +447,7 @@ Ostatnim elementem jest tablica haszująca, która będzie przechowywać referen
 Jako że jeden plik urządzenia-atrapy może być otwarty przez wiele procesów jednocześnie sterownik netdev musi zdawać sobie sprawę z tego faktu i przechowywać niezbędne informacje w celu obsłużenia danych procesów w indywidualny sposób. Z tego powodu istnieje struktura `fo_access`, która reprezentuje pojedynczy dostęp do urządzenia-atrapy.
 
     struct fo_access {
-        int access_id;
+        int    access_id;
         struct netdev_data *nddata;
         struct file *filp;
         struct kfifo fo_queue;
@@ -463,19 +465,21 @@ Jako że tak samo jak `netdev_data` obiekty `fo_access` mogą być używane prze
 
 Na samym końcu jest obiekt typu `hlist_node` o nazwie `hnode` pozwalający na umieszczanie obiektów `fo_access` w tablicy haszującej `hashtable` z kluczem w postaci wartości atrybutu `access_id` w celu łatwego wydobywania właściwego obiektu na podstawie identyfikatora procesu.
 
+
+
 ### Struktura fo_req
 
-struct fo_req {
-    long        seq;        /* for synchronizing netlink messages     */
-    short       msgtype;    /* type of file operation                 */
-    int         access_id;  /* identification of opened file */
-    void       *args;       /* place for s_fo_OPERATION structures    */
-    void       *data;       /* place for fo payload */
-    size_t      size;       /* size of the s_fo_OPERATION structure   */
-    size_t      data_size;
-    int         rvalue;     /* informs about success of failure of fo */
-    struct completion comp; /* completion to release once reply arrives */
-};
+    struct fo_req {
+        long        seq;        /* numer sekwencyjny użyty w nlmsgh_seq */
+        short       msgtype;    /* rodzaj operacji użyty w nlmsgh_type  */
+        int         access_id;  /* PID porocesu który wykonał operacje  */
+        void       *args;       /* wskaźnik do struktury argumentów     */
+        void       *data;       /* wskaźnik to bufora z ładunkiem       */
+        size_t      size;       /* wielkość struktury argumentów        */
+        size_t      data_size;  /* wielkość bufora z łądunkiem          */
+        int         rvalue;     /* informuje o wyniku operacji plikowej */
+        struct completion comp; /* blokuje i uwalnia oczekującą operacje*/
+    };
 
 ### Struktury argumentów operacji plikowych
 
@@ -498,7 +502,7 @@ struct fo_req {
 ### Wykonywanie operacji
 ### Zakańczanie operacji
 
-## Architektura serwera
+## Architektura demona
 ### Podział na procesy
 ### Użycie select()
 
