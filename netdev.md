@@ -293,7 +293,7 @@ Obecnie najpopularniejsze architektury takie jak x86 czy x86-64 wykorzystują ko
 
 Dodatkowym problemem jest kwestia różnej wielkości podstawowych typów danych takich jak `int` czy `long` pomiędzy platformami. Najbardziej kluczowa jest ta różnica pomiędzy platformami 32 i 64 bitowymi które może zmienić długość takich typów jak `long` który musi być przynajmniej 32 bitowy ale może być większy.
 
-Jądro Linux praktycznie od zawsze używa układu bajtów little-endian i większość ważnych typów danych w systemie jest definiowanych w statyczny sposób jako typy o konkretnej ilości bajtów przy pomocy makr takich jak na przykład `__kernel_uid32_t`, które gwarantują typ danych o długości 32 bitów. Przykładem takiego typu może być powszechnie używany `size_t` lub `loff_t`. Dodatkowo w przestrzeni użytkownika można korzystać z typów danych takich jak `int64_t` oraz `int32_t` które gwarantują odpowiednią długość bitową zmiennych użytych do przesyłania danych niezależnie od platformy. Z uwagi na to, iż projekt może być używany jedynie na platformach z systemem Linux praktycznie gwarantowany jest układ little-endian oraz wielkość używanych podstawowych typów danych, podjęta została decyzja by w dużym stopniu zignorować problem serializacji danych na potrzeby komunikacji pomiędzy maszynami na rzecz uproszczenia kodu i zmniejszenia nakładu pracy. Szansa użycia tego oprogramowania na systemie o innej charakterystyce jest nadal istnieje ale nie jest to bardzo prawdopodobne.
+Jądro Linux praktycznie od zawsze używa układu bajtów little-endian i większość ważnych typów danych w systemie jest definiowanych w statyczny sposób jako typy o konkretnej ilości bajtów przy pomocy makr takich jak na przykład `__kernel_uid32_t`, które gwarantują typ danych o długości 32 bitów. Przykładem takiego typu może być powszechnie używany `size_t` lub `loff_t`. Dodatkowo w przestrzeni użytkownika można korzystać z typów danych takich jak `int64_t` oraz `int32_t` które gwarantują odpowiednią długość bitową zmiennych użytych do przesyłania danych niezależnie od platformy. Z uwagi na to, iż projekt może być używany jedynie na platformach z systemem Linux praktycznie gwarantowany jest układ little-endian oraz wielkość używanych podstawowych typów danych, podjęta została decyzja by w dużym stopniu zignorować problem konwertowania typów danych w procesie serializacji na potrzeby komunikacji pomiędzy maszynami na rzecz uproszczenia kodu i zmniejszenia nakładu pracy. Szansa użycia tego oprogramowania na systemie o innej charakterystyce jest nadal istnieje ale nie jest to bardzo prawdopodobne.
 
 W przyszłości możliwe będzie rozszerzenie kodu o warstwę zapewniającą poprawną serializacje wszystkich danych przed przesłaniem ich z jednego modułu jądra za pośrednictwem programu serwera do drugiego modułu jądra na zdalnej maszynie.
 
@@ -408,7 +408,7 @@ Każdy dobry programista wie, iż by zrozumieć czyjś kod należy zacząć od k
 
 ### Struktura netdev_data
 
-Struktura `netdev_data` przedstawia pojedyncze urządzenie obsługiwane przez moduł jądra bez względu na to czy jest to urządzenie-atrap czy rzeczywiste urządzenie. Jest ona zdefiniowana w pliku `netdevmgm.h` i wygląda następująco:
+Struktura `netdev_data`(ang. "Network Device Data") przedstawia pojedyncze urządzenie obsługiwane przez moduł jądra bez względu na to czy jest to urządzenie-atrap czy rzeczywiste urządzenie. Jest ona zdefiniowana w pliku `netdevmgm.h` i wygląda następująco:
 
     struct netdev_data {
         unsigned int nlpid;
@@ -444,7 +444,7 @@ Ostatnim elementem jest tablica haszująca, która będzie przechowywać referen
 
 ### Struktura fo_access
 
-Jako że jeden plik urządzenia-atrapy może być otwarty przez wiele procesów jednocześnie sterownik netdev musi zdawać sobie sprawę z tego faktu i przechowywać niezbędne informacje w celu obsłużenia danych procesów w indywidualny sposób. Z tego powodu istnieje struktura `fo_access`, która reprezentuje pojedynczy dostęp do urządzenia-atrapy.
+Jako że jeden plik urządzenia-atrapy może być otwarty przez wiele procesów jednocześnie sterownik netdev musi zdawać sobie sprawę z tego faktu i przechowywać niezbędne informacje w celu obsłużenia danych procesów w indywidualny sposób. Z tego powodu istnieje struktura `fo_access`(ang. "File Operation Access"), która reprezentuje pojedynczy dostęp do urządzenia-atrapy. Zdefiniowana jest w pliku `kernel/fo_access.h`:
 
     struct fo_access {
         int    access_id;
@@ -455,7 +455,7 @@ Jako że jeden plik urządzenia-atrapy może być otwarty przez wiele procesów 
         struct hlist_node hnode;
     };
 
-Struktura `fo_access` musi być jakoś identyfikowana. Jako że jest ona ekskluzywnie połączona z procesem, który rozpoczął operacje na pliku urządzenia to identyfikator danego procesu(PID) idealnie się do tego nadaje jako że musi być unikalny w środowisku danego systemu. Zmienna `access_id` przechowuje ten identyfikator. Następny jest wskaźnik na strukturę `netdev_data`, który zapewnia łatwy dostęp do obiektu odpowiedzialnego za dane urządzenie.
+Struktura `fo_access` musi być jakoś identyfikowana. Jako że jest ona ekskluzywnie połączona z procesem, który rozpoczął operacje na pliku urządzenia to identyfikator danego procesu(PID) idealnie się do tego nadaje ponieważ musi być unikalny w środowisku danego systemu. Zmienna `access_id` przechowuje ten identyfikator. Następny jest wskaźnik na strukturę `netdev_data`, który zapewnia łatwy dostęp do obiektu odpowiedzialnego za dane urządzenie.
 
 Kolejna struktura używana jest jedynie przez urządzenie-atrapę. Jak było już powiedziane w rozdziale "[Model VFS]" struktura `file` reprezentuje plik otwarty przez pojedynczy proces i istnieje on tak długo jak dany plik jest otwarty przez dany proces. Tak samo struktura `fo_access` istnieje tak długo jak dany proces korzysta z pliku urządzenia-atrapy i zostanie usunięty gdy dany proces wywoła operację `release` na pliku urządzenia.
 
@@ -465,9 +465,11 @@ Jako że tak samo jak `netdev_data` obiekty `fo_access` mogą być używane prze
 
 Na samym końcu jest obiekt typu `hlist_node` o nazwie `hnode` pozwalający na umieszczanie obiektów `fo_access` w tablicy haszującej `hashtable` z kluczem w postaci wartości atrybutu `access_id` w celu łatwego wydobywania właściwego obiektu na podstawie identyfikatora procesu.
 
-
-
 ### Struktura fo_req
+
+Następną strukturą, która pracuje jeszcze bliżej przestrzeni użytkownika niż `fo_access` jest struktura `fo_req`(ang. "File Operation Request") i reprezentuje ona pojedynczą operację plikową wykonaną na dowolnym pliku dowolnego urządzenia-atrapy obsługiwanego przez sterownik netdev. Jest ona podstawą do procesu serializacji danych na potrzeby wysłania ich do procesu demona. Przechowywana jest w pamięci modułu w kolejce FIFO w atrybucie `fo_queue` w obiekcie `fo_access` odpowiedzialnym za proces, który wywołał daną operację plikową, aż do momentu kiedy odpowiedź na daną operację dotrze do sterownika i operacja plikowa zwróci kontrolę razem z wynikiem operacji do procesu, który ją wywołał.
+
+Struktura ta jest zdefiniowana w następujący sposób w pliku `kernel/fo_comm.h`:
 
     struct fo_req {
         long        seq;        /* numer sekwencyjny użyty w nlmsgh_seq */
@@ -481,9 +483,48 @@ Na samym końcu jest obiekt typu `hlist_node` o nazwie `hnode` pozwalający na u
         struct completion comp; /* blokuje i uwalnia oczekującą operacje*/
     };
 
+Zmienna `seq` przechowuje numer sekwencyjny użyty w polu nlmsgh_seq nagłówka Netlink podczas wysyłania zapytania do serwera. Identyfikuje on w sposób unikalny każdą operację plikową wykonaną na urządzeniu-atrapie i używany jest podczas wydobywania obiektów `fo_access` z kolejki `fo_queue`.
+
+Tak samo jak `seq` `msgtype` przechowuje wartość użytą w polu nagłówka netlink. W tym przypadku jest to atrybut nlmsgh_type. Jest to kluczowa wartość, która pozwala modułowi po stronie serwera zidentyfikować i wykonać prawidłową operację plikową na rzeczywistym urządzeniu.
+
+`access_id` to ta sam wartość jaka definiuję obiekt `fo_access` oraz proces, do którego przywiązana jest dana operacja.
+
+Dwa wskaźniki typu `void` wskazują odpowiednio na strukturę przechowującą argumenty z jakimi została wywołana dana operacja plikowa oraz dane, jeżeli jakiekolwiek, które zostały przekazane z przestrzeni użytkownika lub, które mają być dostarczone do niej w przypadku operacji `read()` oraz `write()`.
+
+Wartość `rvalue` przechowuje wynik procesu dostarczenia do i wykonania danej operacji na rzeczywistym urządzeniu. Domyślnie jest ona ustawiana na `-1` podczas wysyłania co zakłada błąd. Jeżeli operacja zostanie prawidłowo dostarczona i wykonana dopiero wtedy wartość ta jest zmieniana na `0` przedstawiającą sukces. W zależności od rodzaju błędów jakie wiadomość może napotkać na swojej drodze do celu wartość ta może być zmieniona na inne kody błędów takie jak `-ENOMEM`, `-ENODEV`, `-ENODATA` lub wiele innych spośród błędów definiowanych przez nagłówek jądra `include/uapi/asm-generic/errno.h`.
+
+Ostatni element jest prawdopodobnie najważniejszy z technicznego punktu widzenia. Jest to jeden z wielu mechanizmów istniejących w jądrze stworzonych na potrzeby synchronizacji wątków. Na atrybucie `comp` typu `completion` można wykonać dwie operacje: `wait_for_completion(struct completion *)` oraz `complete(struct completion *)`. Pierwsza operacja czeka w nieskończoność aż, jakiś inny wątek jądra wywoła drugą operację na rzecz tego samego obiektu `completion`.
+
+Jako że każda operacja plikowa jest w jądrze asynchroniczna za każdym razem tworzony jest nowy wątek, który działa aż jest gotów zwrócić prawidłowy wynik do przestrzeni użytkownika lub kod błędu zależny od tego, na którym kroku operacja została przerwana. Aby każda operacja plikowa grzecznie czekała na powrót wiadomości z wynikiem wykonania operacji na rzeczywistym urządzeniu funkcja `wait_for_completion()` jest wywoływana na atrybucie `comp` obiektu `for_req`. Czeka ona aż sterownik odbierze wiadomość z odpowiedzą, na podstawie `access_id` znajduje odpowiedni obiekt `fo_access` oraz na podstawie `nlmsgh_seq` odpowiedni obiekt `fo_req` i wywołuje operację `complete()` na rzecz jego atrybutu `comp`.
+
+Korzystając z tego mechanizmu jedynym zasobem jaki jest używany przez wszystkie oczekujące wątki operacji plikowych jest mała ilość pamięci przeznaczona na rzecz obiektu typu `completion` oraz ich własne stosy.
+
 ### Struktury argumentów operacji plikowych
 
+Jak już to było przedstawione w rozdziale "[Model VFS]" każda operacja plikowa zdefiniowana w strukturze `file_operations` posiada własny zestaw unikalnych argumentów jakie przyjmuje oraz wartość jaką zwraca po jej zakończeniu. Z tego powodu potrzebny jest jakiś mechanizm, który ujednolici sposób przechowywania oraz przekazywania tych argumentów oraz wartości zwrotnej.
+
+Za to odpowiedzialne są struktury zdefiniowane w pliku nagłówkowym `kernel/fo_struct.h`. Po jednej dla każdej operacji plikowej. Struktury te są wypełniane przez funkcje operacji plikowych zdefiniowane w pliku `kernel/fo_send.h` i następnie przekazywane jako wskaźnik typu `void` do funkcji `fo_send()` z `kernel/fo_comm.c` wraz z wielkością danej struktury w celu zawarcia jej w obiekcie `fo_req` i przesłania do serwera, który może rzeczywiście wykonać daną operację.
+
+Dobrym przykładem takiej struktury jest `s_fo_read`:
+
+    struct s_fo_read {
+        char __user *data;  /* bufor na odczytane dane  */
+        size_t size;        /* wielkość bufora          */
+        loff_t offset;      /* obecna pozycja w pliku   */
+        ssize_t rvalue;     /* wartość zwrotna operacji */
+    };
+
+Która odpowiada operacji odczytu:
+
+	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
+
+Widać tutaj jasno że struktura `s_fo_read` przechowuje wszystkie argumenty, które muszą być przekazane do rzeczywistego urządzenia w celu otrzymania prawidłowego efektu. Posiada one również miejsce na wartość zwrotną danej funkcji w postaci atrybutu `rvalue`(ang. "Return Value"). Tak przygotowana struktura może być skopiowana do wysyłanej wiadomości i rozpakowana przez moduł jądra po drugiej stronie w celu wykonania danej operacji z prawidłowymi argumentami.
+
 ### Tablica haszująca
+
+Dwie kluczowe struktury, które zostały już przedstawione, `netdev_data` oraz `fo_access` są rozróżniane przy pomocy identyfikatora procesu, do którego są przywiązane. Powoduje to problem przechowywania tych obiektów w taki sposób aby odnalezienie ich po ich identyfikatorach było jak najszybsze. Możliwe struktury danych, które mogły by rozwiązać ten problem to różnego rodzaju drzewa takie jak B-Drzewa, B-Drzewa lub drzewa AVL. Jednak w tym przypadku kluczowy jest jak najkrótszy dostęp do danego obiektu bez potrzeby przechodzenia przez głębokie drzewa. Dlatego podjęta została decyzja by użyć tablicy haszującej.
+
+Oczywiście jądro Linux posiada własną uogólniona implementacje tablicy haszującej znajdującą się w pliku `include/linux/hashtable.h`.
 
 ## Wielowątkowość oraz wywłaszczanie
 ### atomic_t
