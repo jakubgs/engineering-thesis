@@ -709,8 +709,118 @@ Dokładniejszy opis wykorzystania spinlocka pojawi się w następnym rozdziale p
 We wcześniejszych rozdziałach dokonany został wybór metody komunikacji modułu `netdev` z procesem demona w przestrzeni użytkownika. Gniazda Netlink okazały się najlepszą metodą biorąc pod uwagę wymagania tego projektu. Jest to jednak dość złożona metoda komunikacji, która z powodu swojej bezpołączeniowej natury wymaga pewnego poziomu kontroli przepływu danych po obu stronach komunikacji. Dokładny opis zastosowanych technik znajduje się w kolejnych trzech podrozdziałach. Przedstawione zostaną detale implementacji komunikacji od strony modułu jądra jako że komunikacja po stronie programu demona prawie niczym się nie różni od normalnej komunikacji sieciowej za pośrednictwem gniazd TCP czy UDP.
 
 ### Tworzenie gniazda
-### odbieranie wiadomości
-### wysyłanie wiadomości
+
+Przestrzeń jądra nie posiada ujednoliconych metod tworzenia gniazd z rodziny BSD takich jakie dostępne są w przestrzeni użytkownika z racji iż nie należy wykonywać takich połączeń w kodzie jądra. Powody zostały dokładnie opisane w rozdziale "[Model oprogramowania]".
+
+Ponieważ nie ma jasnej metody tworzenia gniazd na potrzeby komunikacji sieciowej stworzona została specjalna funkcja na potrzeby tworzenia gniazda Netlink. Zdefiniowana jest ona w pliku `include/linux/netlink.h` i przyjmuje jako jeden z argumentów strukturę `netlink_kernel_cfg` stworzoną specjalnie na potrzeby tego procesu.
+
+Proces tworzenia gniazd Netlink został w jasny sposób zdefiniowany dość niedawno, dokładnie w wersji 3.8 jądra Linux. Dopiero od tej wersji została dodana struktura `netlink_kernel_cfg`. Zmiana to została wprowadzona w [Czerwcu roku 2012][b18] i sprawiła że jakiekolwiek opisy tworzenia gniazd Netlink dostępne w internecie lub książkach o programowaniu jądra Linux stały się nieaktualne. Dobrze to ilustruje wciąż poruszającą się naturę standardów i interfejsów programistycznych istniejących w jądrze Linux.
+
+Poniżej przedstawiona jest funkcja odpowiedzialna za inicjalizację gniazda netlink podczas uruchamiania modułu `netdev` przez funkcje `netdev_init()`:
+
+    int netlink_init(void)
+    {
+        struct netlink_kernel_cfg nl_cfg;
+        nl_cfg.groups = 0;           /* wiadomości będą unicast        */
+        nl_cfg.flags = 0;            /* żadnych specjalnych flag       */
+        nl_cfg.input = netlink_recv; /* funkcja odbierająca wiadomości */
+
+        nl_sk = netlink_kernel_create(&init_net,
+                                        NETLINK_PROTOCOL,
+                                        &nl_cfg);
+
+        if(!nl_sk) {
+            printk(KERN_ALERT "netlink_init: error creating socket.\n");
+            return -1;
+        }
+
+        printk("netdev: Netlink setup complete\n");
+        return 0;
+    }
+
+Najważniejszym atrybutem struktury `netlink_kernel_cfg` jest `input` będące wskaźnikiem na funkcję która odbiera strukturę `sk_buff` jako jedyny argument. W naszym przypadku jest to funkcja `netlink_recv()`. Jądro wywoła tą funkcje w nowym wątku dla każdej wiadomości Netlink jak dotrze do otworzonego gwiazda opisanego przez deskryptor pliku zapisany w zmiennej `nl_sk`.
+
+Struktura `sk_buff` jest podstawową strukturą używaną do przekazywania danych w implementacji wszystkich metod komunikacji sieciowych w jądrze. Jest to bardzo rozległa struktura i zrozumienie jej działania oraz dokładne jej opisanie wymagało by znacznej ilości czasu. Wykracza to poza zakres tej pracy. Zainteresowani mogą poszerzyć swoją wiedzę na ten temat czytając rozdział "Network Drivers" z książki [Linux Device Drivers][b02].
+
+Pozostałe atrybuty definiują, iż wiadomości przesyłane przy pomocy tego gniazda nie będą wysyłane do grup przy pomocy technologii multicast, oraz że gniazdo to nie będzie używać żadnych dodatkowych opcji, które istnieją głównie na specyficzne potrzeby modułów obsługujących routing oraz zaporę ogniową w jądrze.
+
+### Budowa wiadomości
+
+Każda wiadomość Netlink zaczyna się od nagłówka zdefiniowanego przez przedstawioną wcześniej strukturę `nlmsghdr`:
+
+    struct nlmsghdr {
+        __u32 nlmsg_len;   /* długość wiadomości wliczając nagłówek */
+        __u16 nlmsg_type;  /* typ wiadomości                        */
+        __u16 nlmsg_flags; /* dodatkowe flagi do kontroli przepływu */
+        __u32 nlmsg_seq;   /* numer sekwencyjny dla wiadomości      */
+        __u32 nlmsg_pid;   /* identyfikator procesu źródłowego      */
+    };
+
+Na długość wiadomości netlink składa się suma długości czterach elementów. Nagłówka, czyli 16 bajtów, wypełnienia (ang. padding), którego wielkość różni się w zależności od wielkości strony pamięci w systemie, ładunek(ang. payload) wiadomości, którego długość może osiągnąć nawet 213 Kilobajtów, oraz na sam koniec drugie wypełnienie wyrównujące wiadomość względem kolejnej w pamięci.
+
+Wartość 213 kilobajtów została określona na podstawie wielu testów wykonanych podczas rozwoju tego projektu. Nagłówek `include/linux/netlink.h` sugeruje maksymalną wielkość wiadomości Netlink przy pomocy stałej NLMSG_GOODSIZE. Jego wartość na systemie używanym do prowadzenia testów wynosiła 4096 bajtów. Jest to oczywiście bardzo mała wartość i dzielenie wszystkich danych wysyłanych lub odbieranych przez gniazda Netlink na tak małe części wpłynęło by katastroficznie na wydajność oprogramowania. Z tego powodu podjęta została decyzja by ograniczyć wielkość wiadomości Netlink przy pomocy stałej NETDEV_MESSAGE_LIMIT do 213 kilobajtów.
+
+Moduł Netlink udostępnia znaczną ilość makr oraz funkcji ułatwiających budowanie, wypełnianie, odczytywanie oraz wysyłanie wiadomości Netlink. Oto kilka użytych w kodzie modułu `netdev`:
+
+* `struct nlmsghdr *nlmsg_hdr(struct sk_buff *skb)` - Zwraca wskaźnik do nagłówka wiadomości na podstawie bufora `sk_buff`.
+* `struct sk_buff *nlmsg_new(size_t payload, gfp_t flags);` - Alokuje bufor sieciowy `sk_buff` z wystarczającą ilością miejsca by zmieścić pojedynczą wiadomość Netlink z ładunkiem o wielkości `payload`.
+* `struct nlmsghdr *nlmsg_put(struct sk_buff *skb, u32 portid, u32 seq, int type, int payload, int flags);` - Buduje wiadomość Netlink gotową do otrzymania ładunku i wysłania przy pomocy funkcji `netlink_unicast()`.
+* `int nlmsg_len(const struct nlmsghdr *nlh);` - Podaje długość samego ładunku wiadomości.
+* `NLMSG_DATA(nlh)` - Zwraca wskaźnik do miejsca w buforze zarezerwowanym dla wiadomości, w którym zaczyna się ładunek.
+* `NLMSG_SPACE(bufflen)` - Zwraca ilość pamięci jaka była by potrzebna na bufor, w którym ma się zmieścić cała wiadomość Netlink wraz z ładunkiem o wielkości `bufflen`.
+
+Pełną listę funkcji i makr można znaleźć w plikach `include/net/netlink.h`, `include/linux/netlink.h` oraz `include/uapi/linux/netlink.h`. Ponadto moduł Netlink pozwala nawet na dokładne zdefiniowanie swojego protokołu komunikacji i następnie korzystania z szeregu funkcji zaczynających się od `nla_` i znanych jako "Netlink Attributes Interface", które znacznie ułatwiają manipulowaniem atrybutami składającymi się a ładunek wiadomości Netlink.
+
+W przypadku tego projektu pojęta została jednak decyzja by pominąć interfejs Netlink do budowania ładunków wiadomości na rzecz stworzenia własnego znacznie prostszego protokołu komunikacji. Decyzja ta miał a bezpośredni wpływ na zmniejszenie kosztu związanego z opakowywaniem operacji plikowych w wiadomości Netlink i ograniczyło opóźnienia spowodowane tym procesem.
+
+### Odbieranie wiadomości
+
+Za odbieranie wszystkich wiadomości Netlink w module jądra odpowiedzialna jest funkcja `netlink_recv()`, która przekazana została jako atrybut `input` struktury `netlink_kernel_cfg` do funkcji `netlink_kernel_create()`. Ma ona następującą deklaracje:
+
+    void netlink_recv(struct sk_buff *skb);
+
+Jak widać funkcja przyjmuje tylko jeden argument w postaci uniwersalnego bufora sieciowego `sk_buff`. Nie jest to jednak problem. Z użyciem przedstawionej wcześniej funkcji `nlmsg_hdr()` dostanie się do danych wiadomości jest wyjątkowo proste:
+
+    nlh = nlmsg_hdr(skb);       /* wydobycie nagłówka z bufora       */
+
+    pid     = nlh->nlmsg_pid;   /* identyfikatora procesu źródłowego */
+    seq     = nlh->nlmsg_seq;   /* numer sekwencyjny wiadomości      */
+    msgtype = nlh->nlmsg_type;  /* typu wiadomości                   */
+    psize   = nlmsg_len(nlh);   /* długość ładunku                   */
+    payload = NLMSG_DATA(nlh);  /* wskaźnik do samego łądunku        */
+
+Dalej znalezienie wskaźnika do struktury `netdev_data` odpowiedzialnej za dane urządzenie oraz proces demona sprowadza się do wywołania jednej funkcji:
+
+    struct netdev_data *nddata = ndmgm_find(pid);
+
+Funkcja `netlink_recv()` wykonuje bardzo podobny proces w celu wybrania w jaki sposób dana wiadomość musi być obsłużona. Jest ona również odpowiedzialna za odesłanie potwierdzenia odebrania wiadomości do procesu demona jeżeli ustawił on wartość `nlh->nlmsg_flags` na `NLM_F_ACK`. Odesłanie potwierdzenia jest również wyjątkowo proste. Z użyciem tej samej struktury `sk_buff` jaka została odebrana oraz znajdującego się w niej nagłówka `nlmsghdr` wywoływana jest funkcja `netlink_ack(skb, nlh, err)` gdzie `err` definiuje kod błędu jaki ma dane potwierdzenie zwrócić. Wartość `0` jak zwykle oznacza sukces.
+
+Sposób obsłużenia operacji plikowych zawartych w wiadomościach Netlink zostanie opisany w rozdziale "[Odbieranie operacji]".
+
+### Wysyłanie wiadomości
+
+Wysyłanie wiadomości Netlink również nie jest bardzo skomplikowane. Po pierwsze należy zarezerwować bufor sieciowy `sk_buff` o wystarczającej wielkości by zmieściła się w nim cała wiadomość:
+
+    struct sk_buff *skb = nlmsg_new(bufflen, GFP_KERNEL);
+
+Zmienna `bufflen` w tym przypadku określa wielkość ładunku jaki chcemy zmieścić w wiadomości Netlink. Następnie kluczowe jest ustawienie nagłówkowi `nlmsghdr` wszystkich wartości niezbędnych do przesłania naszej wiadomości:
+
+    struct nlmsghdr *nlh = nlmsg_put(skb, pid, seq, msgtype, bufflen, flags);
+
+Pierwszy argument to oczywiście bufor sieciowy `sk_buff` zarezerwowany przy pomocy `nlmsg_new()`. Pozostałe argumenty po prostu zmienne, które ustawiają prawidłowo atrybuty nagłówka. Ważne jest aby prawidłowo zaadresować dany bufor:
+
+    NETLINK_CB(skb).portid = pid;
+    NETLINK_CB(skb).dst_group = 0;
+
+Ustawienie grupy docelowej czyli `dst_group` na `0` zaznacza że wiadomość jest typu unicast. Jedyne co pozostaje to umieszczenie ładunku w buforze i wysłanie wiadomości:
+
+    memcpy(NLMSG_DATA(nlh) ,buffer ,bufflen);
+
+    nlmsg_unicast(nl_sk, skb, pid);
+
+Funkcja `nlmsg_unicast()` dodatkowo własnoręcznie zwalnia pamięć przydzieloną dla bufora `sk_buff` co dodatkowo upraszcza wysyłanie wiadomości.
+
+Oczywiście w rzeczywistym kodzie modułu `netdev` każda z tych operacji musi zostać zabezpieczona poprzez dokładne weryfikowanie wartości zwracanych przez użyte funkcje by wyłapać jakiekolwiek błędy. Jest to oczywiście mało prawdopodobne ale prawie każda z wymienionych tutaj operacji mogła by zakończyć się niepowodzeniem i zwrócić nieużywalną wartość lub wskaźnik o wartości `NULL`.
 
 ## Operacje plikowe
 ### Serializacja
