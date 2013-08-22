@@ -627,11 +627,87 @@ Główne operacje ilustrujące działanie tych tablic są zdefiniowane w pliku `
 Oczywiście jądro Linux posiada własną uogólniona implementacje tablicy haszującej znajdującą się w pliku `include/linux/hashtable.h`.
 
 ## Wielowątkowość oraz wywłaszczanie
+
+Jednym z głównych utrudnień jakie napotykają programiści jądra Linux jest wywłaszczanie. Wywłaszczanie jest efektem faktu iż jądro Linux w celu jak najwydajniejszego zarządzania procesami istniejącymi w systemie rezerwuje sobie prawo do przerwania wykonywania kodu prawie każdego procesu na rzecz innego procesu przestrzeni użytkownika lub jądra. W ten sposób jądro linux zabezpiecza się przed przetrzymywaniem procesora zbyt długo przez jakiś proces lub kompletnym blokowaniem go w przypadku nieskończonego czekania na jakiś zasób, które w efekcie sprawia iż system przestaje odpowiadać i staje się bezużyteczny. Jedynym wyjątkiem, który zupełnie ignoruje problem wywłaszczania są funkcje obsługujące żądania przerwania(IRQ - Interrupt Request), które muszą zostać wykonane w całości zanim zarządca procesów jądra może wrócić do przydzielania i odbierania czasu procesora programom.
+
+Programista jądra musi zdawać sobie sprawę z zagrożenia przerwania wykonywania kodu jego modułu w absolutnie dowolnym momencie i aktywnie zapobiegać problemom z tego wynikającym. Zwłaszcza gdy sam jego moduł działa w sposób wielowątkowy i dodatkowo zwiększa złożoność kodu przez potrzebę zabezpieczania poszczególnych struktur danych przed konfliktami spowodowanymi jednoczesnym dostępem do nich. Niespójne stany danych to kolejny główny problem pisania modułów jądra.
+
+W celu ułatwienia życia programistom jądro Linux udostępnia szereg narzędzi takich jak różnego rodzaju semafory, "muteksy"(ang. Mutex, Mutual Exclusion), spinlocki, kolejki oczekiwania czy wartości atomowe. W kolejnych trzech podrozdziałach zostaną omówione trzy z takich narzędzi, które zostały użyte w kodzie modułu `netdev`.
+
 ### atomic_t
+
+Najprostszym ze wszystkich mechanizmów pozwalających na unikanie niespójnych stanów danych są wartości atomowe. Główne dwa typy takich wartości to `atomic_t` o wielkości 32 bitów i `atomic64_t` o oczywistej wielkości 64 bitów. Zdefiniowane one są w pliku `include/linux/types.h` razem z wieloma innymi podstawowymi typami danych używanymi w kodzie jądra Linux.
+
+W przypadku modułu `netdev` dwukrotnie użyty został typ `atomic_t`. Oba przykłady znajdują się w już omówionej strukturze `netdev_data`. Są to `users` zliczająca ilość referencji do danego obiektu `netdev_data` istniejących w danym momencie w pamięci jądra oraz `curseq`, który wyznacza numery sekwencyjne użyte w polu `nlmsgh_seq` każdej wysłanej wiadomości Netlink. Jako że nie przewidywana jest astronomiczna ilość referencji przekraczająca ponad dwa miliardy a pole `nlmsgh_seq` ma wielkość `__u32` czyli 32 bitów nie było potrzeby używania typu `atomic64_t`.
+
+Oczywiście nie operacji na wartościach atomowych nie można wykonywać tak jak na każdych innych zmiennych i typach całkowych. Należy korzystać z szeregu przygotowanych operacji które gwarantują wykonanie danej operacji bez przerwania przez zarządce procesów jądra:
+
+    atomic_read(v);  /* Odczyt               */
+    atomic_set(v,i); /* Ustawienie wartości. */
+    atomic_add(i,v); /* Dodanie wartości.    */
+    atomic_sub(i,v); /* Odjęcie wartości.    */
+    atomic_inc(v);   /* Inkrementacja.       */
+    atomic_dec(v);   /* Dekrementacja.       */
+
+W celu uproszczenia korzystania z tych wartości stworzone zostały funkcje opakowujące w pliku `kernel/netdevmgm.c`:
+
+* `void ndmgm_get(struct netdev_data *nddata);` - Zwiększa licznik referencji dla obiektu `nddata` o jeden.
+* `void ndmgm_put(struct netdev_data *nddata);` - Zmniejsza licznik referencji o jeden.
+* `int ndmgm_refs(struct netdev_data *nddata);` - Podaje obecny stan licznika.
+* `int ndmgm_incseq(struct netdev_data *nddata);` - Zwiększa licznik numerów sekwencyjnych o jeden i zwraca obecny stan.
+
+Główny powód użycia metod opakowujących wynika z potrzeby debugowania czyli wynajdywania błędów w oprogramowaniu przy użyciu makra `debug` zdefiniowanego w pliku nagłówkowym `kernel/dbg.h`, które wysyła do logów systemu informacje na temat tego, który obiekt `netdev_data` zwiększył lub zmniejszył licznik referencji:
+
+    debug("dev: %15s, from: %pS", nddata->devname, __builtin_return_address(0));
+
+Dzięki użyciu specjalnej funkcji wbudowanej, którą [udostępnia kompilator GCC][b17] możliwe jest zdobycie nazwy i adresu funkcji, która jest poprzednia na stosie wywołania. Innymi słowy funkcji, która wywołała właśnie wykonywana funkcję. Ułatwia to znacznie zlokalizowanie problemów z nieoprawnym liczeniem referencji lub referencji zajmowanych ale nie zwalnianych I jest jednym z wielu technik, z których programiści C mogą korzystać w celu wyłapania błędów w kodzie.
+
 ### Semafory odczytu/zapisu
+
+Bardziej złożoną metodą synchronizacji danych na przestrzeni wielu wątków i unikania problemów wynikających z wywłaszczania są semafory. Semafor normalnie obsługuje się przy pomocy dwóch funkcji. Jednej blokującej dostęp do danej sekcji kodu dla innych procesów i drugiej, która ten dostęp zwalnia gdy proces wychodzi z chronionej sekcji. Tradycyjne semafory opierały swoje działanie na zwyczajnym liczniku, którego wartość wynosiła `0` gdy nikt z niego nie korzystał i była zwiększana o jeden gdy jakiś proces próbował dostać się do kodu zabezpieczonego przy pomocy danego semafora.
+
+W wielu przypadkach użycie tego typu semafora jest w zupełności wystarczające. Zwłaszcza gdy dany semafor jest tworzony by chronić jedną konkretną część kodu. Niestety w przypadku ochrony struktur danych używanie semaforów może negatywnie wpłynąć na wydajność i powodować długie przestoje. Oczywiście każdy przypadek jest inny ale głównie spowodowane jest to faktem iż dane są częściej odczytywane niż zapisywane. Nie ma potrzeby blokować dostępu do danych dla szeregu procesów jeżeli w danym momencie wszystkie procesy chcą jedynie odczytać dane a nie je zmodyfikować. W takim przypadku nie może dojść do niespójności danych.
+
+Z tego powodu istnieje specjalny rodzaj semafora, semafor odczytu/zapisu, który rozróżnia pomiędzy operacjami odczytu oraz zapisu w celu skrócenia czasów oczekiwania do minimum. Ich definicja znajduje się w pliku `include/linux/rwsem.h`. Główna struktura to `rw_semaphore`. Została ona użyta w definicjach struktur `netdev_data` oraz `fo_access` w celu zabezpieczenia ich przed tworzeniem stanów niespójnych danych. Do korzystania z tego typu semafora zdefiniowane zostały funkcje:
+
+    void down_read(struct rw_semaphore *sem);
+    int down_read_trylock(struct rw_semaphore *sem);
+    void down_write(struct rw_semaphore *sem);
+    int down_write_trylock(struct rw_semaphore *sem);
+    void up_read(struct rw_semaphore *sem);
+    void up_write(struct rw_semaphore *sem);
+
+Funkcje zaczynające się od `down_` blokują dany semafor a funkcje zaczynające się od `up_` zwalniają go. W zależności od tego jakiego rodzaju operację będzie wykonywał kod zabezpieczony przy pomocy danych funkcji `down` oraz `up` należy wybrać rodzaj blokowania `read` lub `write`. Normalnie funkcje blokujące semafor blokują dany proces do momentu aż dany semafor zostanie zwolniony. Istnieją jednak wersje z dopiskiem `_trylock`, które nie są blokujące i natychmiast zwracają `0` gdy semafor jest zablokowany i `1` gdy jest wolny.
+
+Prawie wszystkie funkcje operujące na obiektach `netdev_data` i `fo_access` używają któregoś z tych typów blokowania semaforów w celu zabezpieczenia przed niespójnością danych. Dzięki użyciu semaforów odczytu/zapisu wpływ tych zabezpieczeń na wydajność modułu jest minimalny.
+
+Niestety semafory są ostrzem obusiecznym. Rozwiązując jeden problem dodają kilka nowych. Absolutnie niezbędne jest aby kod chroniony przez semafor był odporny na wszelkiego rodzaju błędy, które mogły by przerwać wykonywanie danego procesu, takie jak na przykład używanie pustych wskaźników czyli błąd "`NULL pointer dereference`". Gdyby coś takiego się zdarzyło i operacja `up` zwalniająca semafor nie została by wywołana zablokowało by to definitywnie wszystkie pozostałe procesy chcące się dostać do danej sekcji kodu. Pominięcie implementacji prawidłowej obsługi błędów, która gwarantuje zwolnienie semafora jest katastrofalnym błędem. Może on łatwo doprowadzić cały system do stanu nieużywalności.
+
+Kolejnym problemem specyficznym dla semaforów jest używanie kilku semaforów jednocześnie. W przypadku gdy istnieją dwa fragmenty kodu, oba zabezpieczone jednocześnie przy pomocy dwóch semaforów, `A` oraz `B`, absolutnie kluczowe jest aby blokować jest zawsze w tej samej kolejności, czyli na przykład zawsze `A` a następnie `B`. Gdyby blokowanie semaforów było wykonywane w różnej kolejności bardzo łatwo mogło by to doprowadzić do stanu, w którym jeden wątek posiada blokadę semafora `A` gdy drugi posiada blokadę semafora `B` i żaden ni może się dostać do swojej sekcji kodu. W efekcie oba są zablokowane w nieskończoność. A dokładniej do momentu ponownego uruchomienia systemu.
+
+Jak widać semafory so znacznie trudniejsze w użyciu niż wartości atomowe ale zarazem pozwalają na znacznie bardziej złożoną kontrolę dostępu do danych czy kodu. Narzędzi tych należy unikać wszędzie gdzie jest to możliwe.
+
 ### spinlock
 
-## Netlink
+Ostatnim i najbardziej podatnym na błędy mechanizmem synchronizacji są spinlocki. W samej nazwie ukryty jest sposób w jaki działają. Z angielskiego spinlock oznacza po prostu kręcącą się blokadę. W przeciwieństwie do semaforów, które blokują proces aż do momentu, w którym zostaną zwolnione spinlocki działają na zasadzie nieskończonej pętli odpytującej wartość zmiennej blokady aż do momentu gdy osiągnie ona wartość identyfikującą zwolnienie blokady czyli `0`. Z racji działania w pętli spinlock zablokowany przez dłuższy czas, czyli więcej niż kilka tysięcy nanosekund, zaczyna agresywnie marnować czas procesora, na którym jest uruchomiony.
+
+Z tego powodu zastosowania spinlocków są bardzo ograniczone. Należy ich używać tylko w sytuacjach gdy czas oczekiwania zawsze będzie bardzo krótki lub przypadki współdzielenia danego zasobu lub sekcji kodu są bardzo rzadkie. Z tego powodu główne zastosowanie spinlocków polega na synchronizowaniu jednego wątku jądra względem wszystkich innych. W takich sytuacjach ukończenie danej operacji przez ten kluczowy wątek ma priorytet ponad wszystkie inne wątki.
+
+Do podstawowej obsługi pojedynczego spinlocka w środowisku nie wywołanym przez przerwanie systemowe wystarczą dwie funkcje:
+
+* `void spin_lock(spinlock_t *lock);` - Do zablokowania blokady gdy jest wolna lub odpytywania blokady w pętli aż zostanie zwolniona.
+* `void spin_unlock(spinlock_t *lock);` - Do zwolnienia blokady.
+
+W kodzie modułu `netdev` istnieje tylko jeden przypadek, który wymaga u życia tego typu mechanizmu synchronizacji z racji tego jak krótko taka blokada musiała by działać. Znajduje się on w implementacji komunikacji Netlink w pliku `kernel/netlink.c`. Spinlock przypisany do konkretnego obiektu `netdev_data` gwarantuje kolejność wysyłanych wiadomości Netlink będzie prawidłowa. Użycie spinlocka w funkcji `netlink_recv()` zapewnia że po odebraniu wiadomości z przestrzeni użytkownika proces zdąży wysłać potwierdzenie odebrania wiadomości zanim którykolwiek z istniejących wątków modułu `netdev` wyśle jakąś operację plikową powodując w ten sposób błąd po stronie demona oczekującego wiadomości potwierdzającej.
+
+Spinlocki poza dużym wpływem na wydajność systemu przy nieostrożnym ich wykorzystaniu posiadają te same wady wymienione dla semaforów. Również są podatne na nieskończone blokowanie w przypadku niezwolnienia blokady oraz na wzajemne blokowanie procesów przy użyciu dwóch lub więcej spinlocków. Raczej odradza się używania tej metody synchronizacji chyba że programista jest absolutnie pewien że da ona najlepsze wyniki w danym przypadku.
+
+Dokładniejszy opis wykorzystania spinlocka pojawi się w następnym rozdziale pod tytułem "[Komunikacja Netlink]".
+
+## Komunikacja Netlink
+
+We wcześniejszych rozdziałach dokonany został wybór metody komunikacji modułu `netdev` z procesem demona w przestrzeni użytkownika. Gniazda Netlink okazały się najlepszą metodą biorąc pod uwagę wymagania tego projektu. Jest to jednak dość złożona metoda komunikacji, która z powodu swojej bezpołączeniowej natury wymaga pewnego poziomu kontroli przepływu danych po obu stronach komunikacji. Dokładny opis zastosowanych technik znajduje się w kolejnych trzech podrozdziałach. Przedstawione zostaną detale implementacji komunikacji od strony modułu jądra jako że komunikacja po stronie programu demona prawie niczym się nie różni od normalnej komunikacji sieciowej za pośrednictwem gniazd TCP czy UDP.
+
 ### Tworzenie gniazda
 ### odbieranie wiadomości
 ### wysyłanie wiadomości
