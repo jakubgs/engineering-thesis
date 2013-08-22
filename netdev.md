@@ -165,12 +165,12 @@ Urządzenia znakowe to jedne z najprostszych urządzeń jakie można znaleźć w
 Podstawowym obiektem przedstawiającym urządzenia znakowe w jądrze Linux jest struktura `cdev` zdefiniowany w pliku `include/linux/cdev.h`. Wygląda ona następująco:
 
     struct cdev {
-	    struct kobject kobj;
+        struct kobject kobj;
 	    struct module *owner;
 	    const struct file_operations *ops;
 	    struct list_head list;
-	    dev_t dev;
-	    unsigned int count;
+        dev_t dev;
+        unsigned int count;
     };
 
 Jak prawie każda ważna struktura w jądrze posiada ona k-obiekt(kobject), który jest strukturą używaną przez jądro Linux do zarządzania i organizowania obiektów używanych w trakcie działania systemu. Można ten obiekt nazwać obiektem pomocniczym, ułatwia on na przykład lokalizowanie struktur na podstawie elementów, które się w nich zawierają. K-obiekty to złożony mechanizm kontroli wielu kluczowych obiektów istniejących w kodzie jądra Linux i pojawia się on w prawie każdym podsystemie jaki w nim istnieje. Dokładne wytłumaczenie tej struktury i jej działania wykracza znacznie poza zakres tego projektu i samo w sobie było by dobrym tematem na dość rozbudowaną pracę inżynierską.
@@ -312,9 +312,7 @@ Daje to nam dwie kategorie procesów:
 
 ## Zabezpieczenia przed paniką jądra
 
-## Problem wywłaszczania oraz współdzielenia zasobów
-
-# Implementacja (70%)
+# Implementacja
 
 ## Podział kodu
 
@@ -360,7 +358,7 @@ Jedynym wspólnym plikiem nagłówkowym jest plik `include/protocol.h` definiuj�
 
 Wprowadzając jakiekolwiek zmiany do wartości zdefiniowanym w tym pliku należy zwiększyć wartość `NETDEV_PROTOCOL_VERSION` o jeden aby zapobiec błędom spowodowanym przez komunikację serwera i klienta o różnych wersjach protokołu.
 
-## Budowanie i uruchamianie kodu
+## Budowanie i ładowanie kodu
 
 ### kbuild
 
@@ -377,7 +375,7 @@ Format plików `Makefile` używanych przez system `kbuild` jest bardzo uproszczo
     ccflags-y 	:= -O ${WARN} ${NOWARN} ${DEBUG} ${INCLUDE}
 
     obj-m       := netdev
-	netdev-objs := fo_access.o fo_send.o fo_recv.o fo_comm.o fo.o
+    netdev-objs := fo_access.o fo_send.o fo_recv.o fo_comm.o fo.o
                    netdevmgm.o netlink.o main.o
 
 Kluczowymi zmiennymi są `obj-m` oraz `netdev-objs`. Zmienna `obj-m` definiuje główny cel kompilacji czyli nasz końcowy moduł jądra. Zmienna `netdev-objs` definiuje zależności niezbędne do zbudowania pliku końcowego czyli netdev.o oraz po połączeniu plików składowych plik modułu netdev.ko. Wszystkie wymienione pliki binarne muszą posiadać takie same nazwy plików jak ich pliki źródłowe z jedyną różnicą w postaci rozszerzenia pliku. Dzięki temu system `kbuild` może łatwo znaleźć pliki źródłowe `fo_access.c` oraz `fo_access.h` potrzebne do zbudowania pliku `fo_access.o` składającego się na końcowy moduł.
@@ -470,7 +468,7 @@ Po powrocie z tej funkcji jądro kończy wywoływanie kodu modułu i zwalnia zar
 
 ## Kluczowe struktury danych
 
-Każdy dobry programista wie, iż by zrozumieć czyjś kod należy zacząć od kluczowych struktur danych lub klas w przypadku programowania obiektowego. Oto trzy najważniejsze struktury stworzone na potrzeby modułu netdev.
+Każdy dobry programista wie, iż by zrozumieć czyjś kod należy zacząć od kluczowych struktur danych lub klas w przypadku programowania obiektowego. Oto trzy najważniejsze struktury stworzone na potrzeby modułu netdev oraz jedna struktura udostępniana w kodzie jądra w celu ich organizacji.
 
 ### Struktura netdev_data
 
@@ -533,7 +531,7 @@ Na samym końcu jest obiekt typu `hlist_node` o nazwie `hnode` pozwalający na u
 
 ### Struktura fo_req
 
-Następną strukturą, która pracuje jeszcze bliżej przestrzeni użytkownika niż `fo_access` jest struktura `fo_req`(ang. "File Operation Request") i reprezentuje ona pojedynczą operację plikową wykonaną na dowolnym pliku dowolnego urządzenia-atrapy obsługiwanego przez sterownik netdev. Jest ona podstawą do procesu serializacji danych na potrzeby wysłania ich do procesu demona. Przechowywana jest w kolejce FIFO w atrybucie `fo_queue` obiektu `fo_access` odpowiedzialnego za proces, który wywołał daną operację plikową. Istnieć będzie aż do momentu kiedy odpowiedź na daną operację dotrze do sterownika i operacja plikowa zwróci kontrolę razem z wynikiem operacji do procesu, który ją wywołał.
+Następną strukturą, która pracuje jeszcze bliżej przestrzeni użytkownika niż `fo_access` jest struktura `fo_req`(ang. "File Operation Request") i reprezentuje ona pojedynczą operację plikową wykonaną na dowolnym pliku dowolnego urządzenia-atrapy obsługiwanego przez sterownik `netdev`. Jest ona podstawą do procesu serializacji danych na potrzeby wysłania ich do procesu demona. Przechowywana jest w kolejce FIFO w atrybucie `fo_queue` obiektu `fo_access` odpowiedzialnego za proces, który wywołał daną operację plikową. Istnieć będzie aż do momentu kiedy odpowiedź na daną operację dotrze do sterownika i operacja plikowa zwróci kontrolę razem z wynikiem operacji do procesu, który ją wywołał.
 
 Struktura ta jest zdefiniowana w następujący sposób w pliku `kernel/fo_comm.h`:
 
@@ -587,13 +585,13 @@ Dobrym przykładem takiej struktury jest `s_fo_read`:
 
 Która odpowiada operacji odczytu ze struktury `file_operations`:
 
-	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
+    ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 
 Widać tutaj jasno że struktura `s_fo_read` przechowuje wszystkie argumenty, które muszą być przekazane do rzeczywistego urządzenia w celu otrzymania prawidłowego efektu. Posiada one również miejsce na wartość zwrotną danej funkcji w postaci atrybutu `rvalue`(ang. "Return Value"). Tak przygotowana struktura może być skopiowana do wysyłanej wiadomości i rozpakowana przez moduł jądra po drugiej stronie w celu wykonania danej operacji z prawidłowymi argumentami.
 
-Warto zauważyć że struktura `s_fo_read` nie zawiera w sobie wskaźnika do struktury `file`. Było już powiedziane że struktura ta powstaje na rzecz pojedyńczej instancji otwarcia pliku przez proces i nie ma żadnego znaczenia poza tym kontekstem. Przesyłaniej jej do serwera było by bezuzyteczne jako że wykonując daną operacje na rzeczywistym urządzeniu jądro stworzy własną strukturę `file`, która będzie repreentować dana instancje otwartego pliku.
+Warto zauważyć że struktura `s_fo_read` nie zawiera w sobie wskaźnika do struktury `file`. Było już powiedziane że struktura ta powstaje na rzecz pojedynczej instancji otwarcia pliku przez proces i nie ma żadnego znaczenia poza tym kontekstem. Przesyłanie jej do serwera było by bezużyteczne jako że wykonując daną operacje na rzeczywistym urządzeniu jądro stworzy własną strukturę `file`, która będzie reprezentować dana instancje otwartego pliku.
 
-Struktury dla wszystkich pozostałych operacji plikowy zostały stworzone w analogiczny sposób. Niektóre z nich równiez pomijają argumenty takie jak `inode` lub `fl_owner_t` z uwagi na to że są tak samo przywiązane do kontekstu otwarcia danego pliku przez dany proces.
+Struktury dla wszystkich pozostałych operacji plikowy zostały stworzone w analogiczny sposób. Niektóre z nich również pomijają argumenty takie jak `inode` lub `fl_owner_t` z uwagi na to że są tak samo przywiązane do kontekstu otwarcia danego pliku przez dany proces.
 
 ### Tablica haszująca
 
@@ -624,7 +622,7 @@ Główne operacje ilustrujące działanie tych tablic są zdefiniowane w pliku `
 * `struct fo_access * ndmgm_find_acc(struct netdev_data *nddata, int access_id);` - Odnajduje obiekt `fo_access` dla urządzenia opisanego przez strukturę `netdev_data`, na którą wskazuje wskaźnik `nddata` na podstawie identyfikatora `access_id`.
 * `int ndmgm_end(void);` - Wywoływana jest podczas usuwania modułu `netdev` z systemu. Przechodzi po wszystkich istniejących urządzeniach i zatrzymuje wszystkie oczekujące operacje a następnie usuwa dane urządzenie.
 
-Oczywiście jądro Linux posiada własną uogólniona implementacje tablicy haszującej znajdującą się w pliku `include/linux/hashtable.h`.
+Pierwsze dwie funkcje są absolutnie kluczowe w procesie odbierania wiadomości Netlink od procesu demona. Ich wykorzystanie zostanie przedstawione w rozdziale "[Odbieranie operacji]".
 
 ## Wielowątkowość oraz wywłaszczanie
 
@@ -833,9 +831,7 @@ Oczywiście w rzeczywistym kodzie modułu `netdev` każda z tych operacji musi z
 ### Podział na procesy
 ### Użycie select()
 
-##
-
-# Wyniki (5%)
+# Wyniki
 
 ## Porównanie prędkości transmisji danych
 ## Porównanie opóźnień
@@ -847,20 +843,38 @@ Oczywiście w rzeczywistym kodzie modułu `netdev` każda z tych operacji musi z
 # Bibliografia
 
 [b00]: http://nbd.sourceforge.net/ "Nework Block Device"
+
 [b01]: "Linux Kernel - Przewodnik Programisty", Robert Love
+
 [b02]: "Linux Device Drivers", 3rd Edition, Jonathan Corbet, Alessandro Rubini i Greg Kroah-Hartman
+
 [b03]: "Understanding Linux Kernel", 3rd Edtion, Daniel P. Bovet i Marco Cesati
+
 [b04]: "Programowanie zastosowań sieciowych w systemie UNIX", Tom 1, Richard Stevens
+
 [b05]: "Overview of Linux-Kernel Reference Counting", Paul E. McKenney, Linux Technology Center, IBM Beaverton
+
 [b06]: "The Netlink protocol: Mysteries Uncovered", Jan Engelhardt
+
 [b07]: "Communicating between the kernel and user-space in Linux using Netlink Sockets", Pablo Neira Ayuso, Rafael M. Gasca i Laurent Lefevre
+
 [b10]: http://gcc.gnu.org/onlinedocs/gcc/C-Extensions.html#C-Extensions "Extensions to the C Language Family"
+
 [b11]: http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html#s4 "Inline Assembly HOWTO"
+
 [b12]: "Linux Kernel - Przewodnik Programisty", str 98-99 i 365-370, Robert Love
+
 [b13]: https://www.gnu.org/software/libc/ "The GNU C Library"
+
 [b14]: https://www.gnu.org/software/make/ "GNU Make"
+
 [b15]: http://daringfireball.net/projects/markdown/ "Markdown format"
+
 [b16]: https://computing.llnl.gov/tutorials/pthreads/ "POSIX Threads"
+
+[b17]: http://gcc.gnu.org/onlinedocs/gcc/Return-Address.html "Return Address of Frame or Function"
+
+[b18]: http://www.spinics.net/lists/netfilter-devel/msg22338.html "netlink: add netlink_kernel_cfg parameter to netlink_kernel_create"
 
 # Dodatki
 
@@ -870,7 +884,7 @@ Oczywiście w rzeczywistym kodzie modułu `netdev` każda z tych operacji musi z
 * Pliki graficzne diagramów oraz wykresów
 * Plik PDF wygenerowany na podstawie pliku LaTeX
 * Pełen kod źródłowy projektu w folderze `netdev`
-* Katalog .git zawierający cały opis historii rozwoju projektu zawarty w bazie danych systemu kontroli wersji Git
+* Katalog `.git` zawierający cały opis historii rozwoju projektu zawarty w bazie danych systemu kontroli wersji Git
 
 ## Spis tabel
 ## Spis rysunków
