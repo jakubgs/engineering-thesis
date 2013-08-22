@@ -402,6 +402,72 @@ W celu usunięcia działającego modułu z systemu programista może użyć kole
 
 Narzędzia insmod jak i `rmmod` dostarczają bardzo okrojone komunikaty o błędach. W celu zrozumienia problemu potrzebne jest raczej odczytanie komunikatów systemowych dostępnych przy pomocy komendy `dmesg` lub w pliku `/var/log/messages`.
 
+## Uruchamianie i zatrzymywanie modułu
+
+Każdy moduł jądra musi posiadać dwie podstawowe funkcje odpowiedzialne za inicjalizację wszystkich niezbędnych zasobów i przygotowanie urządzeń fizycznych czy wirtualnych do pracy oraz zwolnienie tych wszystkich zasobów oraz urządzeń podczas zatrzymywania działania modułu. Funkcje nazywają się odpowiednio `init` oraz `exit`. Funkcje `init` można nazwać ekwiwalentem głównej funkcji `main()`, od której każdy program C zaczyna swoje działanie.
+
+W module `netdev` zdefiniowane one są w pliku `kernel/main.c` i nazywają się `netdev_init()` oraz `netdev_exit()`. Rejestruje się te specjalne funkcje przy pomocy dwóch makr przeznaczonych do tego właśnie zadania:
+
+    module_exit(netdev_exit);
+    module_init(netdev_init);
+
+Bez wyznaczenia funkcji inicjującej moduł oraz funkcji zamykającej go jądro nie wiedziało by jak taki moduł uruchomić. Jest to absolutne minimum jaki musi wykonać każda implementacja jakiegokolwiek modułu jądra Linux.
+
+Funkcja inicjująca moduł `netdev` wykonuje kilka podstawowych czynności niezbędny do rozpoczęcia pracy. Rezerwuje numery dur oraz moll, klasę urządzeń jakie będzie obsługiwał i inicjuje wszystkie struktury niezbędne do normalnego działania modułu. Oto kod funkcji `netdev_init()`:
+
+    static int __init netdev_init(void) { /* constructor */
+        int err;
+        int first_minor = 0;
+
+        /* alokuj zakresu numerów moll dla urządzeń znakowych */
+        err = alloc_chrdev_region(&netdev_devno,
+                                    first_minor,
+                                    dev_count,
+                                    netdev_name);
+        if (err) {
+            printk(kern_err "netdev: error registering chrdev!\n");
+            return err;
+        }
+
+        /* zapisz numer dur jaki został przypisany sterownikowi */
+        netdev_major = major(netdev_devno);
+
+        /* zarejestruj klasę urządzeń netdev */
+        netdev_class = class_create(this_module, netdev_name);
+        if (is_err(netdev_class)) {
+            err = ptr_err(netdev_class);
+            goto fail;
+        }
+
+        /* utwórz gniazdo Netlink do komunikacji z demonem */
+        err = netlink_init();
+        if (err) {
+            printk(kern_err "netdev: netlink setup failed!\n");
+            goto fail;
+        }
+
+        /* przygotuj struktury danych do zarządzania urządzeniami */
+        ndmgm_prepare();
+
+        return 0; /* success */
+    fail:
+        /* czyszczenie pamięci w razie jakichkolwiek błędów */
+        netdev_cleanup();
+        return err;
+    }
+
+Funkcja zamykająca sterownik jest znacznie prostsza. A przynajmniej wydaje się taka bez zaglądania do funkcji, które wywołuje:
+
+    static void __exit netdev_exit(void) { /* Destructor */
+        /* zamknij gniazdo netlink */
+        netlink_exit();
+        /* usuń wszystkie urządzenia */
+        netdev_cleanup();
+        return;
+    }
+
+Po powrocie z tej funkcji jądro kończy wywoływanie kodu modułu i zwalnia zarezerwowaną dla niego pamięć. W trakcie tej procedury jądro dodatkowo wykonuje szereg testów mających na celu upewnienie się że moduł nie zaśmiecił pamięci jądra w jakikolwiek sposób. Testy te mogą często wykryć niezwolnione semafory, lub wciąż istniejące zablokowane wątki jądra. Jest to oczywiście sytuacja, która nie powinna się zdarzać podczas normalnej pracy stabilnego modułu jądra ale informacja taka jest bardzo przydatna dla programistów.
+
 ## Kluczowe struktury danych
 
 Każdy dobry programista wie, iż by zrozumieć czyjś kod należy zacząć od kluczowych struktur danych lub klas w przypadku programowania obiektowego. Oto trzy najważniejsze struktury stworzone na potrzeby modułu netdev.
