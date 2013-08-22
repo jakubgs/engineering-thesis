@@ -597,7 +597,32 @@ Struktury dla wszystkich pozostałych operacji plikowy zostały stworzone w anal
 
 ### Tablica haszująca
 
-Dwie kluczowe struktury, które zostały już przedstawione, `netdev_data` oraz `fo_access` są rozróżniane przy pomocy identyfikatora procesu, do którego są przywiązane. Powoduje to problem przechowywania tych obiektów w taki sposób aby odnalezienie ich po ich identyfikatorach było jak najszybsze. Możliwe struktury danych, które mogły by rozwiązać ten problem to różnego rodzaju drzewa takie jak B-Drzewa, B-Drzewa lub drzewa AVL. Jednak w tym przypadku kluczowy jest jak najkrótszy dostęp do danego obiektu bez potrzeby przechodzenia przez głębokie drzewa. Dlatego podjęta została decyzja by użyć tablicy haszującej.
+Dwie kluczowe struktury, które zostały już przedstawione, `netdev_data` oraz `fo_access` są rozróżniane przy pomocy identyfikatora procesu, do którego są przywiązane. Powoduje to problem przechowywania tych obiektów w taki sposób aby odnalezienie ich po ich identyfikatorach było jak najszybsze. Możliwe struktury danych, które mogły by rozwiązać ten problem to różnego rodzaju drzewa takie jak B-Drzewa, L-Drzewa lub drzewa AVL. Jednak w tym przypadku kluczowy jest jak najkrótszy dostęp do danego obiektu bez potrzeby przechodzenia przez głębokie drzewa. Dlatego podjęta została decyzja by użyć tablicy haszującej.
+
+Oczywiście jądro Linux posiada własną uogólniona implementacje tablicy haszującej znajdującą się w pliku `include/linux/hashtable.h`. Kluczową strukturą, która umożliwia korzystanie z tablicy haszującej jest struktura `hlist_node` zdefiniowana w pliku `include/linux/types.h` reprezentująca pojedynczy element tablicy. Każda struktura, która ma być przechowywana w tablicy hashtable musi posiadać taki atrybut.
+
+Podstawowe operacje dopuszczalne na tablicy to:
+
+* `DEFINE_HASHTABLE(name, bits)` - Definiuje tablicę, jej nazwę oraz wielkość, która będzie interpretowana jako potęga dwójki. Używane by statycznie zdefiniować tablicę haszująca na etapie kompilacji.
+* `DECLARE_HASHTABLE(name, bits)` - Deklaruje tablicę. Używane by następnie zainicjalizować daną tablicę w trakcie działania modułu jądra przy pomocy `hash_init()`.
+* `hash_init(hashtable)` - Inicjalizuje tablicę zadeklarowaną przy pomocy `DECLARE_HASHTABLE()`.
+* `hash_add(hashtable, node, key)` - Dodaje to tablicy `hashtable` element który zawiera w sobie strukturę `hlist_node` pod kluczem `key`.
+* `hash_del(struct hlist_node *node)` - Usuwa z tablicy element reprezentowany przez atrybut `hlist_node`.
+* `hash_empty(hashtable)` - Zwraca prawdę jeżeli tablica jest pusta.
+* `hash_for_each(hashtable, index, obj, member)` - Iteracja po wszystkich elementach tablicy przy pomocy licznika `index` na przy pomocy wskaźnika `obj`. Wartość `member` określa jak nazywa się atrybut `hlist_node` w obiekcie o wskaźniku `obj`. W przypadku `netdev_data` oraz `fo_access` argument `member` przyjął by wartość `hnode`.
+* `hash_for_each_possible(hashtable, obj, member, key)` - Iteracja po wszystkich elementach, których klucze identyfikacyjne `key` umieściły je w tych samych "wiadrach".
+
+Niestety implementacja `hashtable` z jądra, tak jak wszystkie implementacje tablic haszujących, jest podatne na konflikty kluczy spowodowane tym samym wynikiem ich haszowania. Z tego powodu potrzebna jest iteracja po możliwych wynikach dostępnych dla klucza `key`.
+
+Dodatkowo istnieją wersje z dopiskiem `_safe` wielu funkcji które pozwalają na usuwanie elementów z tablicy w trakcie iteracji przy pomocy `hash_del()`. Większość z tych operacji jest zdefiniowana jako makra a nie normalne funkcje. W większości jest to spowodowane zyskami w czasie odnajdywania elementów.
+
+Tablice `hashtable` są wykorzystywane do przechowywania wszystkich obiektów `netdev_data` oraz `fo_access` w kodzie modułu `netdev`. Dzięki temu opóźnienia spowodowane wyszukiwaniem ich na podstawie ich identyfikatorów są minimalne co znacznie wpływa na wydajność wykonywania operacji plikowych z racji na to, że operacje te są wykonywane za każdym razem gdy nowa wiadomość Netlink dociera do modułu.
+
+Główne operacje ilustrujące działanie tych tablic są zdefiniowane w pliku `kernel/netdevmgm.c`:
+
+* `struct netdev_data* ndmgm_find(int nlpid);` - Odnajduje obiekt `netdev_data` na podstawie identyfikatora procesu.
+* `struct fo_access * ndmgm_find_acc(struct netdev_data *nddata, int access_id);` - Odnajduje obiekt `fo_access` dla urządzenia opisanego przez strukturę `netdev_data`, na którą wskazuje wskaźnik `nddata` na podstawie identyfikatora `access_id`.
+* `int ndmgm_end(void);` - Wywoływana jest podczas usuwania modułu `netdev` z systemu. Przechodzi po wszystkich istniejących urządzeniach i zatrzymuje wszystkie oczekujące operacje a następnie usuwa dane urządzenie.
 
 Oczywiście jądro Linux posiada własną uogólniona implementacje tablicy haszującej znajdującą się w pliku `include/linux/hashtable.h`.
 
