@@ -467,7 +467,7 @@ Na samym końcu jest obiekt typu `hlist_node` o nazwie `hnode` pozwalający na u
 
 ### Struktura fo_req
 
-Następną strukturą, która pracuje jeszcze bliżej przestrzeni użytkownika niż `fo_access` jest struktura `fo_req`(ang. "File Operation Request") i reprezentuje ona pojedynczą operację plikową wykonaną na dowolnym pliku dowolnego urządzenia-atrapy obsługiwanego przez sterownik netdev. Jest ona podstawą do procesu serializacji danych na potrzeby wysłania ich do procesu demona. Przechowywana jest w pamięci modułu w kolejce FIFO w atrybucie `fo_queue` w obiekcie `fo_access` odpowiedzialnym za proces, który wywołał daną operację plikową, aż do momentu kiedy odpowiedź na daną operację dotrze do sterownika i operacja plikowa zwróci kontrolę razem z wynikiem operacji do procesu, który ją wywołał.
+Następną strukturą, która pracuje jeszcze bliżej przestrzeni użytkownika niż `fo_access` jest struktura `fo_req`(ang. "File Operation Request") i reprezentuje ona pojedynczą operację plikową wykonaną na dowolnym pliku dowolnego urządzenia-atrapy obsługiwanego przez sterownik netdev. Jest ona podstawą do procesu serializacji danych na potrzeby wysłania ich do procesu demona. Przechowywana jest w kolejce FIFO w atrybucie `fo_queue` obiektu `fo_access` odpowiedzialnego za proces, który wywołał daną operację plikową. Istnieć będzie aż do momentu kiedy odpowiedź na daną operację dotrze do sterownika i operacja plikowa zwróci kontrolę razem z wynikiem operacji do procesu, który ją wywołał.
 
 Struktura ta jest zdefiniowana w następujący sposób w pliku `kernel/fo_comm.h`:
 
@@ -478,24 +478,29 @@ Struktura ta jest zdefiniowana w następujący sposób w pliku `kernel/fo_comm.h
         void       *args;       /* wskaźnik do struktury argumentów     */
         void       *data;       /* wskaźnik to bufora z ładunkiem       */
         size_t      size;       /* wielkość struktury argumentów        */
-        size_t      data_size;  /* wielkość bufora z łądunkiem          */
+        size_t      data_size;  /* wielkość bufora z ładunkiem          */
         int         rvalue;     /* informuje o wyniku operacji plikowej */
         struct completion comp; /* blokuje i uwalnia oczekującą operacje*/
     };
 
-Zmienna `seq` przechowuje numer sekwencyjny użyty w polu nlmsgh_seq nagłówka Netlink podczas wysyłania zapytania do serwera. Identyfikuje on w sposób unikalny każdą operację plikową wykonaną na urządzeniu-atrapie i używany jest podczas wydobywania obiektów `fo_access` z kolejki `fo_queue`.
+Zmienna `seq` przechowuje numer sekwencyjny użyty w polu nlmsgh_seq nagłówka Netlink podczas wysyłania zapytania do serwera. Identyfikuje on w sposób unikalny każdą operację plikową wykonaną na urządzeniu-atrapie i używany jest podczas wydobywania obiektów `fo_req` z kolejki `fo_queue`.
 
-Tak samo jak `seq` `msgtype` przechowuje wartość użytą w polu nagłówka netlink. W tym przypadku jest to atrybut nlmsgh_type. Jest to kluczowa wartość, która pozwala modułowi po stronie serwera zidentyfikować i wykonać prawidłową operację plikową na rzeczywistym urządzeniu.
+Tak samo jak `seq`, `msgtype` przechowuje wartość użytą w polu nagłówka Netlink. W tym przypadku jest to atrybut `nlmsgh_type`. Jest to kluczowa wartość, która pozwala modułowi po stronie serwera zidentyfikować i wykonać prawidłową operację plikową na rzeczywistym urządzeniu. Dopuszczalne wartości dla tej zmiennej zdefiniowane są w pliku `include/protocol.h`. Dla przykładowej operacji `read()` atrybut `msgtype` przyjmie wartość `MSGT_FO_READ`.
 
-`access_id` to ta sam wartość jaka definiuję obiekt `fo_access` oraz proces, do którego przywiązana jest dana operacja.
+`access_id` to ta sam wartość jaka identyfikuje obiekt `fo_access` oraz proces, do którego przywiązana jest dana operacja.
 
 Dwa wskaźniki typu `void` wskazują odpowiednio na strukturę przechowującą argumenty z jakimi została wywołana dana operacja plikowa oraz dane, jeżeli jakiekolwiek, które zostały przekazane z przestrzeni użytkownika lub, które mają być dostarczone do niej w przypadku operacji `read()` oraz `write()`.
 
 Wartość `rvalue` przechowuje wynik procesu dostarczenia do i wykonania danej operacji na rzeczywistym urządzeniu. Domyślnie jest ona ustawiana na `-1` podczas wysyłania co zakłada błąd. Jeżeli operacja zostanie prawidłowo dostarczona i wykonana dopiero wtedy wartość ta jest zmieniana na `0` przedstawiającą sukces. W zależności od rodzaju błędów jakie wiadomość może napotkać na swojej drodze do celu wartość ta może być zmieniona na inne kody błędów takie jak `-ENOMEM`, `-ENODEV`, `-ENODATA` lub wiele innych spośród błędów definiowanych przez nagłówek jądra `include/uapi/asm-generic/errno.h`.
 
-Ostatni element jest prawdopodobnie najważniejszy z technicznego punktu widzenia. Jest to jeden z wielu mechanizmów istniejących w jądrze stworzonych na potrzeby synchronizacji wątków. Na atrybucie `comp` typu `completion` można wykonać dwie operacje: `wait_for_completion(struct completion *)` oraz `complete(struct completion *)`. Pierwsza operacja czeka w nieskończoność aż, jakiś inny wątek jądra wywoła drugą operację na rzecz tego samego obiektu `completion`.
+Ostatni element jest prawdopodobnie najważniejszy z technicznego punktu widzenia. Jest to jeden z wielu mechanizmów istniejących w jądrze stworzonych na potrzeby synchronizacji wątków. Na atrybucie `comp` typu `completion` można wykonać, między innymi, dwie operacje:
 
-Jako że każda operacja plikowa jest w jądrze asynchroniczna za każdym razem tworzony jest nowy wątek, który działa aż jest gotów zwrócić prawidłowy wynik do przestrzeni użytkownika lub kod błędu zależny od tego, na którym kroku operacja została przerwana. Aby każda operacja plikowa grzecznie czekała na powrót wiadomości z wynikiem wykonania operacji na rzeczywistym urządzeniu funkcja `wait_for_completion()` jest wywoływana na atrybucie `comp` obiektu `for_req`. Czeka ona aż sterownik odbierze wiadomość z odpowiedzą, na podstawie `access_id` znajduje odpowiedni obiekt `fo_access` oraz na podstawie `nlmsgh_seq` odpowiedni obiekt `fo_req` i wywołuje operację `complete()` na rzecz jego atrybutu `comp`.
+    void wait_for_completion(struct completion *);
+    void complete(struct completion *);
+
+Pierwsza operacja czeka w nieskończoność aż, jakiś inny wątek jądra wywoła drugą operację na rzecz tego samego obiektu `completion`.
+
+Jako że każda operacja plikowa jest w jądrze asynchroniczna za każdym razem tworzony jest nowy wątek, który blokuje proces w przestrzeni użytkownika i działa aż jest gotów zwrócić prawidłowy wynik lub kod błędu zależny od tego, na którym kroku operacja została przerwana. Aby każda operacja plikowa grzecznie czekała na powrót wiadomości z wynikiem wykonania operacji na rzeczywistym urządzeniu funkcja `wait_for_completion()` jest wywoływana na atrybucie `comp` obiektu `for_req`. Czeka ona aż sterownik `netdev` odbierze wiadomość z odpowiedzą, na podstawie `access_id` znajduje odpowiedni obiekt `fo_access` oraz na podstawie `nlmsgh_seq` odpowiedni obiekt `fo_req` i wywołuje operację `complete()` na rzecz jego atrybutu `comp`.
 
 Korzystając z tego mechanizmu jedynym zasobem jaki jest używany przez wszystkie oczekujące wątki operacji plikowych jest mała ilość pamięci przeznaczona na rzecz obiektu typu `completion` oraz ich własne stosy.
 
@@ -503,7 +508,7 @@ Korzystając z tego mechanizmu jedynym zasobem jaki jest używany przez wszystki
 
 Jak już to było przedstawione w rozdziale "[Model VFS]" każda operacja plikowa zdefiniowana w strukturze `file_operations` posiada własny zestaw unikalnych argumentów jakie przyjmuje oraz wartość jaką zwraca po jej zakończeniu. Z tego powodu potrzebny jest jakiś mechanizm, który ujednolici sposób przechowywania oraz przekazywania tych argumentów oraz wartości zwrotnej.
 
-Za to odpowiedzialne są struktury zdefiniowane w pliku nagłówkowym `kernel/fo_struct.h`. Po jednej dla każdej operacji plikowej. Struktury te są wypełniane przez funkcje operacji plikowych zdefiniowane w pliku `kernel/fo_send.h` i następnie przekazywane jako wskaźnik typu `void` do funkcji `fo_send()` z `kernel/fo_comm.c` wraz z wielkością danej struktury w celu zawarcia jej w obiekcie `fo_req` i przesłania do serwera, który może rzeczywiście wykonać daną operację.
+Za to odpowiedzialne są struktury zdefiniowane w pliku nagłówkowym `kernel/fo_struct.h`. Po jednej dla każdej operacji plikowej. Struktury te są wypełniane przez funkcje operacji plikowych zdefiniowane w pliku `kernel/fo_send.h` i następnie przekazywane jako wskaźnik typu `void` do funkcji `fo_send()` z pliku `kernel/fo_comm.c` wraz z wielkością danej struktury w celu zawarcia jej w obiekcie `fo_req` i przesłania do serwera, który może rzeczywiście wykonać daną operację.
 
 Dobrym przykładem takiej struktury jest `s_fo_read`:
 
@@ -514,11 +519,15 @@ Dobrym przykładem takiej struktury jest `s_fo_read`:
         ssize_t rvalue;     /* wartość zwrotna operacji */
     };
 
-Która odpowiada operacji odczytu:
+Która odpowiada operacji odczytu ze struktury `file_operations`:
 
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 
 Widać tutaj jasno że struktura `s_fo_read` przechowuje wszystkie argumenty, które muszą być przekazane do rzeczywistego urządzenia w celu otrzymania prawidłowego efektu. Posiada one również miejsce na wartość zwrotną danej funkcji w postaci atrybutu `rvalue`(ang. "Return Value"). Tak przygotowana struktura może być skopiowana do wysyłanej wiadomości i rozpakowana przez moduł jądra po drugiej stronie w celu wykonania danej operacji z prawidłowymi argumentami.
+
+Warto zauważyć że struktura `s_fo_read` nie zawiera w sobie wskaźnika do struktury `file`. Było już powiedziane że struktura ta powstaje na rzecz pojedyńczej instancji otwarcia pliku przez proces i nie ma żadnego znaczenia poza tym kontekstem. Przesyłaniej jej do serwera było by bezuzyteczne jako że wykonując daną operacje na rzeczywistym urządzeniu jądro stworzy własną strukturę `file`, która będzie repreentować dana instancje otwartego pliku.
+
+Struktury dla wszystkich pozostałych operacji plikowy zostały stworzone w analogiczny sposób. Niektóre z nich równiez pomijają argumenty takie jak `inode` lub `fl_owner_t` z uwagi na to że są tak samo przywiązane do kontekstu otwarcia danego pliku przez dany proces.
 
 ### Tablica haszująca
 
