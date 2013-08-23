@@ -675,7 +675,7 @@ Z tego powodu istnieje specjalny rodzaj semafora, semafor odczytu/zapisu, który
     void up_read(struct rw_semaphore *sem);
     void up_write(struct rw_semaphore *sem);
 
-Funkcje zaczynające się od `down_` blokują dany semafor a funkcje zaczynające się od `up_` zwalniają go. W zależności od tego jakiego rodzaju operację będzie wykonywał kod zabezpieczony przy pomocy danych funkcji `down` oraz `up` należy wybrać rodzaj blokowania `read` lub `write`. Normalnie funkcje blokujące semafor blokują dany proces do momentu aż dany semafor zostanie zwolniony. Istnieją jednak wersje z dopiskiem `_trylock`, które nie są blokujące i natychmiast zwracają `0` gdy semafor jest zablokowany i `1` gdy jest wolny.
+Funkcje zaczynające się od `down_...` blokują dany semafor a funkcje zaczynające się od `up_...` zwalniają go. W zależności od tego jakiego rodzaju operację będzie wykonywał kod zabezpieczony przy pomocy danych funkcji `down` oraz `up` należy wybrać rodzaj blokowania `read` lub `write`. Normalnie funkcje blokujące semafor blokują dany proces do momentu aż dany semafor zostanie zwolniony. Istnieją jednak wersje z dopiskiem `_trylock`, które nie są blokujące i natychmiast zwracają `0` gdy semafor jest zablokowany i `1` gdy jest wolny.
 
 Prawie wszystkie funkcje operujące na obiektach `netdev_data` i `fo_access` używają któregoś z tych typów blokowania semaforów w celu zabezpieczenia przed niespójnością danych. Dzięki użyciu semaforów odczytu/zapisu wpływ tych zabezpieczeń na wydajność modułu jest minimalny.
 
@@ -767,7 +767,7 @@ Moduł Netlink udostępnia znaczną ilość makr oraz funkcji ułatwiających bu
 * `NLMSG_DATA(nlh)` - Zwraca wskaźnik do miejsca w buforze zarezerwowanym dla wiadomości, w którym zaczyna się ładunek.
 * `NLMSG_SPACE(bufflen)` - Zwraca ilość pamięci jaka była by potrzebna na bufor, w którym ma się zmieścić cała wiadomość Netlink wraz z ładunkiem o wielkości `bufflen`.
 
-Pełną listę funkcji i makr można znaleźć w plikach `include/net/netlink.h`, `include/linux/netlink.h` oraz `include/uapi/linux/netlink.h`. Ponadto moduł Netlink pozwala nawet na dokładne zdefiniowanie swojego protokołu komunikacji i następnie korzystania z szeregu funkcji zaczynających się od `nla_` i znanych jako "Netlink Attributes Interface", które znacznie ułatwiają manipulowaniem atrybutami składającymi się a ładunek wiadomości Netlink.
+Pełną listę funkcji i makr można znaleźć w plikach `include/net/netlink.h`, `include/linux/netlink.h` oraz `include/uapi/linux/netlink.h`. Ponadto moduł Netlink pozwala nawet na dokładne zdefiniowanie swojego protokołu komunikacji i następnie korzystania z szeregu funkcji zaczynających się od `nla_...` i znanych jako "Netlink Attributes Interface", które znacznie ułatwiają manipulowaniem atrybutami składającymi się a ładunek wiadomości Netlink.
 
 W przypadku tego projektu pojęta została jednak decyzja by pominąć interfejs Netlink do budowania ładunków wiadomości na rzecz stworzenia własnego znacznie prostszego protokołu komunikacji. Decyzja ta miał a bezpośredni wpływ na zmniejszenie kosztu związanego z opakowywaniem operacji plikowych w wiadomości Netlink i ograniczyło opóźnienia spowodowane tym procesem.
 
@@ -821,13 +821,239 @@ Funkcja `nlmsg_unicast()` dodatkowo własnoręcznie zwalnia pamięć przydzielon
 Oczywiście w rzeczywistym kodzie modułu `netdev` każda z tych operacji musi zostać zabezpieczona poprzez dokładne weryfikowanie wartości zwracanych przez użyte funkcje by wyłapać jakiekolwiek błędy. Jest to oczywiście mało prawdopodobne ale prawie każda z wymienionych tutaj operacji mogła by zakończyć się niepowodzeniem i zwrócić nieużywalną wartość lub wskaźnik o wartości `NULL`.
 
 ## Operacje plikowe
-### Serializacja
+
+Główną funkcją tego projektu jest oczywiście przesyłanie operacji plikowych wykonanych na urządzeniu-atrapie do maszyny z rzeczywistym urządzeniem, wykonanie jej tam z takimi samymi argumentami i zwrócenie wyniku przez urządzenie-atrapę z powrotem do procesu, który zainicjował operację. Przedstawiony już został przykład struktury z rodziny `s_fo_...` przechowującej argumenty operacji oraz struktura `fo_req` reprezentująca pojedyncze żądanie operacji plikowej. Teraz należy opisać proces wysyłania, odbierania oraz wykonywania tych operacji.
+
 ### Wysyłanie operacji
+
+Każda operacja plikowa wykonana na urządzeniu atrapie zaczyna swoje istnienie jako wywołanie jednej z funkcji ustawionej jako jeden z argumentów struktury `file_operations` zdefiniowanej jako `nedev_fops` w pliku `kenrel/fo.c`. Struktura ta jest przekazywana jako argument do `cdev_init()` podczas inicjowania nowego urządzenia-atrapy w `ndmgm_create_dummy`.
+
+Wszystkie te operacje są zdefiniowane w pliku `kernel/fo_send.c`. Oto przykład operacji `open` używanej przez każdy proces, który chce rozpocząć pracę na danym pliku urządzenia:
+
+    int ndfo_send_open(struct inode *inode, struct file *filp)
+    {
+        int rvalue = 0;
+        struct netdev_data *nddata = NULL;
+        struct fo_access *acc = NULL;
+        /* struktura przechowująca argumenty operacji plikowej */
+        struct s_fo_open args = {
+            .rvalue = -EIO
+        };
+
+        /* odnalezienie struktury netdev_data przypisanej do urządzneia */
+        nddata = ndmgm_find(ndmgm_find_pid(inode->i_cdev->dev));
+
+        /* stworzenie struktury fo_access reprezentującej otwarty plik */
+        acc = fo_acc_start(nddata, current->pid);
+        if (!acc) {
+            printk(KERN_ERR "ndfo_send_open: failed to allocate acc\n");
+            return -ENOMEM;
+        }
+
+        /* zapisanie fo_access fo prywatnych danych dla łątwego dostępu */
+        filp->private_data = (void*)acc;
+
+        /* wysłanie operacji do rzeczywistego urządzenia */
+        rvalue = fo_send(MSGT_FO_OPEN,
+                        filp->private_data,
+                        &args, sizeof(args),
+                        NULL, 0);
+
+        if (rvalue < 0) {
+            return rvalue;
+        }
+        /* zwrócenie wyniku */
+        return args.rvalue;
+    }
+
+Funkcja `ndfo_send_open()` jest dość specyficzna ponieważ poza wysłaniem żądania o wykonanie operacji otwarcia pliku rzeczywistego urządzenia na zdalnej maszynie musi ona również stworzyć nowy obiekt typu `fo_access`, który będzie reprezentował ten konkretny dostęp do pliku urządzenia-atrapy. Z tego powodu drugim argumentem przekazanym do funkcji `fo_acc_start()` jest `current->pid` posiadający identyfikator procesu, który wywołał daną operację.
+
+Warto zaznaczyć że wskaźnik `current` jest specyficznym obiektem w jądrze Linux. Jest on dostępny wszędzie i jest on typu `task_stuct` i *zawsze* reprezentuje obecnie wykonywane zadanie i jego kontekst, w skład którego wchodzi kod zadania, jego pamięć wirtualna, stos i wiele innych elementów. Struktura ta jest zdefiniowana w pliku `include/linux/sched.h` i jest podstawą zarządzania procesami oraz wątkami w jądrze Linux. Jest to niezwykle złożona struktura, która może osiągać nawet 115 atrybutów gdy wszystkie opcjonalne funkcjonalności są wbudowane w jądro. Nie ma wielu osób w pełni rozumiejących wszystkie jej funkcje.
+
+Po stworzeniu obiektu `fo_access` wskaźnik do niej jest zapisywany w specjalnym atrybucie struktury `file` o nazwie `private_data` przeznaczonym na własny użytek przez sterowniki urządzeń. Dzięki temu gdy ten sam proces będzie wywoływał kolejne operacje plikowe nie będzie trzeba za każdym razem wyszukiwać wskaźnika do `netdev_data` przy pomocy `ndmgm_find()` co znacznie przyspieszy ich obsługiwanie.
+
+Ostatnim krokiem jest wysłanie żądania przy pomocy funkcji `fo_send()` z pliku `kernel/fo_comm.c`:
+
+    int fo_send(short msgtype, struct fo_access *acc, void *args,
+                size_t size, void *data, size_t data_size);
+
+Wykonuje ona pięć podstawowych operacji. Alokuje pamięć z puli pamięci `queue_pool` i wypełni nową strukturę `fo_req`, która będzie reprezentować dane żądanie:
+
+
+    struct fo_req *req = NULL;
+    req = kmem_cache_alloc(acc->nddata->queue_pool, GFP_KERNEL);
+
+    req->rvalue = -1; /* z góry zakładamy niepowodzenie w razie odesłania */
+    req->msgtype = msgtype;
+    req->access_id = acc->access_id;
+    req->args = args;
+    req->size = size;
+    req->data = data;
+    req->data_size = data_size;
+    init_completion(&req->comp); /* inicjalizacja struktury oczekiwania */
+
+Następnie doda nowy obiekt `fo_req` do kolejki żądań `acc->fo_queue`, z której zostanie wydobyty gdy odpowiedź dotrze do sterownika przez gniazdo Netlink:
+
+    fo_acc_foreq_add(acc, req);
+
+Po czym przygotowuje dane żądanie do wysłania przez jego serializacje do bufora:
+
+    buffer = fo_serialize(req, &bufflen);
+
+Ostatecznie zdobywa nowy numer sekwencyjny dla danej wiadomości z żądaniem i wysyła je przy pomocy funkcji opakowującej `neltink_send()` z pliku `kernele/netlink.c`:
+
+    req->seq = ndmgm_incseq(acc->nddata);
+    rvalue = netlink_send(acc->nddata, req->seq, req->msgtype,
+                          NLM_F_REQUEST, buffer, bufflen);
+
+Po wysłaniu jedyne co pozostaje to oczekiwanie na otrzymanie odpowiedzi:
+
+    wait_for_completion(&req->comp);
+
+Od tego momentu funkcja `fo_send` śpi aż funkcja `fo_recv` odbierze odpowiedź nan jej żądanie, wydobędzie odpowiednie `fo_req` z kolejki `fo_queue` i zwolni strukturę ukończenia `req->comp` przy pomocy `complete()`.
+
 ### Odbieranie operacji
-### Wykonywanie operacji
+
+Każde żądanie operacji plikowej jakie otrzyma wcześniej omówiona funkcja `netlink_recv()` będzie opakowane w nagłówek Netlink z odpowiednio ustawionym atrybutem `nlh->nlmsg_type` na wartość pomiędzy `MSGT_FO_START` a `MSGT_FO_END`. Tak zidentyfikowana operacja plikowa jest przekazywana do funkcji `fo_recv()`:
+
+    int fo_recv(void *data);
+
+Nie jest ona jednak wywoływana w normalny sposób. Z uwagi na to że nigdy nie jest wiadomo jak długo wykonanie danej operacji zajmie a proces demona oczekuje na wiadomość potwierdzającą jako że wszystkie żądania operacji plikowych są wysyłane z flagą `NLM_F_ACK` niezbędne jest wywołanie funkcji `fo_recv()` w nowym wątku. Robi to kod odpowiedzialny za obsługę operacji plikowych w funkcji `netlink_recv()`:
+
+    /* odnajdź urządzenie odpowiedzalne za daną operację */
+    nddata = ndmgm_find(nlh->nlmsg_pid);
+
+    /* skopiuj bufor ponieważ użyjemy go do wysłania potwierdzenia */
+    data = skb_copy(skb, GFP_KERNEL);
+
+    /* stwórz nowy wątek jądra na potrzeby obsługi żądania */
+    task = kthread_create(&fo_recv, data, "fo_recv");
+
+    /* zablokuj spinlock by zapewnić wysłanie potwierdzenia */
+    spin_lock(&nddata->nllock);
+
+    /* uruchom nowo stworzony wątek */
+    wake_up_process(task);
+
+Po wykonaniu tego kodu `netlink_recv()` może spokojnie wysłać potwierdzenia odebrania żądania do procesu demona oraz odblokować spinlock by pozwolić innym funkcjom opakowującym Netlink wysyłać swoje wiadomości:
+
+    /* err wynosi 0 jeżeli operacja się powiodła */
+    netlink_ack(skb, nlh, err);
+
+    spin_unlock(&nddata->nllock);
+
+Tak wywołany nowy proces jest gotowy do obsłużenia żądania. Musi on jednak wiedzieć czy wiadomość jaką otrzymał jest nowym żądaniem czy raczej odpowiedzią na żądanie. Rozróżnienie to jest łatwe przy użyciu atrybutu `dummy` w strukturze `netdev_data`:
+
+    /* zdobądź nagłówek Netlink */
+    nlh = nlmsg_hdr(skb);
+    msgtype = nlh->nlmsg_type;
+
+    /* znajdź urządzenie odpowiedzialne za to połączenie */
+    nddata = ndmgm_find(nlh->nlmsg_pid);
+    
+    /* wydobądź identyfikator `fo_access` z pierwszego pola ładunku */
+    memcpy(&pid, NLMSG_DATA(nlh), sizeof(pid));
+    acc = ndmgm_find_acc(nddata, pid);
+
+    if (acc == NULL && msgtype == MSGT_FO_OPEN) {
+        /* stwórz nowy `fo_access` jeżeli otwieramy nowy plik */
+        acc = fo_acc_start(nddata, pid);
+    }
+
+    if (nddata->dummy) {
+        /* urządzenie jest atrapą więc wiadomość to odpowiedź */
+        rvalue = fo_complete(acc, nlh, skb);
+    } else {
+        /* urządzenie jest serwerem więc wiadomość to żądanie */
+        rvalue = fo_execute(acc, nlh, skb);
+    }
+
+W zależności od tego jakie urządzenie otrzymało daną wiadomość można określić czy jest to żądanie wykonania nowej operacji plikowej na rzeczywistym urządzeniu po stronie serwerowej czy odpowiedź na wysłane żądanie po stronie klienta.
+
 ### Zakańczanie operacji
 
+Jeżeli jest to odpowiedź na żądanie zadanie funkcji `fo_complete` jest bardzo proste. Musi ona wydobyć prawidłowy obiekt `fo_req` z kolejki `acc->fo_queue`, skopiować do niej wynik i uwolnić blokadę `req->comp` na oczekującym wątku funkcji `fo_send`:
+
+    /* wydobycie z kolejki oczekujących operacji plikowych */
+    req = fo_acc_foreq_find(acc, nlh->nlmsg_seq);
+
+    /* deserializacja prosto do odnalezionej fo_req */
+    fo_deserialize_toreq(req, NLMSG_DATA(nlh));
+
+    /* zwolnienie blokady */
+    complete(&req->comp);
+
+Z momentem wywołania funkcji `complete` na `req->comp` funkcja `wait_for_completion()` zwraca kontrolę do `fo_send()`, która po oczyszczeniu pamięci z kilku użytych obiektów zwraca wynik do funkcji operacji plikowej, która ją wywołała. Na przykład wcześniej wymienionej funkcji `ndfo_send_open()`.
+
+### Wykonywanie operacji
+
+Proces odbierania żądań operacji plikowych do wykonania na rzeczywistym urządzeniu jest niewiele trudniejszy:
+
+    /* deserializuj ładunek wiadomości Netlink do fo_req */
+    req = fo_deserialize(acc, NLMSG_DATA(nlh));
+
+    /* wylicz indeks tablicy netdev_recv_fops */
+    fonum = msgtype - (MSGT_FO_START+1);
+    /* zdobądź wskaźnik do prawidłowej funkcji operacji */
+    fofun = netdev_recv_fops[fonum];
+
+    /* wywołaj daną operację plikową z argumentami z fo_req */
+    req->rvalue = fofun(acc, req);
+
+    /* serializuj wynik wykonania operacji do bufora */
+    buff = fo_serialize(req, &bufflen);
+
+    /* zapakuj wynik do bufora sieciowego */
+    skbtmp = netlink_pack_skb(nlh, buff, bufflen);
+
+    /* odeślij wynik wykonania operacji do */
+    netlink_send_skb(acc->nddata, skb);
+
+Tutaj kluczową strukturą jest `netdev_recv_fops` zdefiniowana z pliku `kernel/fo_comm.c`. Jest to tablica wskaźników do funkcji wykonujących żądania operacji plikowych na rzeczywistym urządzeniu. Jej deklaracja wygląda następująco:
+
+    int (*netdev_recv_fops[])(struct fo_access *, struct fo_req*);
+
+Jest ona wypełniona w odpowiedniej kolejności zbiorem funkcji z rodziny `ndfo_recv_...` lub wartościami `NULL` w przypadku operacji, które nie są zaimplementowane. Kolejność ta jest bezpośrednio zależna od numerów jakie zostały przydzielone operacjom plikowym w pliku `include/protocol.h`. Na przykład operacja `open()` zdefiniowana jest przez stałą `MSGT_FO_OPEN` jako `111`. Dzięki takiemu układowi możliwe jest uniknięcie budowania ogromnej instrukcji wybory `switch` poprzez odjęcie od typu wiadomości `nlh->nlmsg_type` wartości `MSGT_FO_START`(równej `100`) zwiększonej o jeden i otrzymanie indeksu tablicy operacji. Indeks ten będzie wskazywał na operację, którą dane żądanie chce wykonać na rzeczywistym urządzeniu.
+
+Używanie tablic wskaźników do funkcji jest rzadko używanym i często pomijanym rozwiązaniem przez wielu programistów. Tutaj upraszcza ono kod i zwiększa wydajność wyszukiwania prawidłowej operacji plikowej.
+
+Kluczowym krokiem jest wykonanie danej operacji. W przypadku wiadomości typu `MSGT_FO_OPEN` będzie to funkcja `ndfo_recv_open()`:
+
+    int ndfo_recv_open(struct fo_access *acc, struct fo_req *req) {
+        struct s_fo_open *args = req->args;
+        int err = 0;
+        int flags = O_RDWR | O_LARGEFILE;
+        int mode = 0;
+        
+        /* otwórz plik urządzenia przypisanego do tego obiektu netdev_data */
+        acc->filp = filp_open(acc->nddata->devname, flags, mode);
+        if (IS_ERR(acc->filp)) {
+            err = PTR_ERR(acc->filp);
+            printk(KERN_ERR "ndfo_recv_open_req: err = %d\n", err);
+            return -1; /* failure */
+        }
+
+        /* sprawdź czy plik urządzenia implementuje jakiekolwiek operacje */
+        if (!acc->filp->f_op) {
+            printk(KERN_ERR "ndfo_recv_open_req: no file operations\n");
+            return -1; /* failure */
+        }
+        /* zapis sukces operacji w strukturze argumentów */
+        args->rvalue = 0;
+        return 0; /* success */
+    }
+
+Funkcja `filp_open()` jest specjalnie przygotowana na potrzeby otwierania plików urządzeń przez inne sterowniki. Tworzy ona strukturę `file` będącą deskryptorem tego otwarcia pliku i pozwala na dostanie się do wskaźnika na strukturę `file_operations` danego urządzenia poprzez `acc->filp->f_op`. Dzięki temu gdy pojawi się żądanie wykonania operacji `read` jedyne co funkcja `ndfo_recv_read()` musi zrobić to:
+
+    args->rvalue = acc->filp->f_op->read(acc->filp,
+                                         req->data,
+                                         args->size,
+                                         &args->offset);
+
+Analogicznie wskaźniki do wszystkich innych operacji są dostępne pod `acc->filp->f_op->[NAZWA_OPERACJI]`.
+
 ## Architektura demona
+
 ### Podział na procesy
 ### Użycie select()
 
