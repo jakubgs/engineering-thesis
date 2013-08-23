@@ -299,11 +299,11 @@ W przyszłości możliwe będzie rozszerzenie kodu o warstwę zapewniającą pop
 
 ## Sposób implementacji programu demona
 
-Z uwagi na to że podjęta została decyzja aby zamknąć funkcjonalność serwera oraz klienta w jednym programie przestrzeni użytkownika, który nazywać będziemy demonem, kluczowe jest rozdzielenie poszczególnych funkcji pomiędzy odrębne procesy. W przypadku normalnych programów udostępniających różnego rodzaju usługi rozsądnym pomysłem jest użycie wątków jako że zarządzanie nimi jest dość proste dzięki bibliotece wątków POSIX zwanej [pthread][b16]. Niestety specyfika naszego programu wynikająca z potrzeby komunikowania się z przestrzenią jądra za pośrednictwem gniazd Netlink sprawia że niezbędnym jest aby wątki komunikujące się z jądrem posiadały swój własny odrębny identyfikator procesu(PID). W przypadku systemów GNU/Linux wątki współdzielą identyfikator procesu z procesem macierzystym, który jest stworzył. Z tego powodu użycie wątków POSIX jest niemożliwe.
+Z uwagi na to że podjęta została decyzja aby zamknąć funkcjonalność serwera oraz klienta w jednym programie przestrzeni użytkownika, który nazywać będziemy demonem, kluczowe jest rozdzielenie poszczególnych funkcji pomiędzy odrębne procesy. W przypadku normalnych programów udostępniających różnego rodzaju usługi rozsądnym pomysłem jest użycie wątków jako że zarządzanie nimi jest dość proste dzięki bibliotece wątków POSIX zwanej [pthread][b16]. Niestety specyfika naszego programu wynikająca z potrzeby komunikowania się z przestrzenią jądra za pośrednictwem gniazd Netlink sprawia że niezbędnym jest aby wątki komunikujące się z jądrem posiadały swój własny odrębny identyfikator procesu(PID). W przypadku systemów GNU/Linux wątki współdzielą identyfikator procesu z procesem macierzystym, który jest stworzył. Z tego powodu użycie wątków POSIX jest niepraktyczne.
 
-Jednak fakt że wiadomości Netlink określają swój cel oraz źródło na podstawie identyfikatorów procesów może być znacznym ułatwieniem w implementacji programu demona. Tworząc nowy proces oraz nowe gniazdo Netlink na potrzeby komunikacji z jądrem dla każdego obsługiwanego urządzenia pozbywamy się potrzeby pisania kodu, który musiał by rozróżniać pomiędzy tym, z którego urządzenia pochodzi dany komunikat jeżeli użyty było by tylko jeden proces i jedno gniazdo Netlink. Ponieważ wcześniej opisany nagłówek wiadomości Netlink zawiera w sobie jedynie zmienną definiującą rodzaj komunikatu o nazwie `nlmsg_type`, który programista może użyć w implementacji własnego protokołu komunikacji proces demona musiał by zaglądać do samego ładunku(payload) danej wiadomości w celu zweryfikowania z jakiego urządzenia ona pochodzi. Przydzielając jeden proces do jednego urządzenia tożsamość ta jest oczywista.
+Jednak fakt że wiadomości Netlink określają swój cel oraz źródło na podstawie identyfikatorów procesów może być znacznym ułatwieniem w implementacji programu demona. Tworząc nowy proces oraz nowe gniazdo Netlink na potrzeby komunikacji z jądrem dla każdego obsługiwanego urządzenia pozbywamy się potrzeby pisania kodu, który musiał by rozróżniać pomiędzy tym, z którego urządzenia pochodzi dany komunikat. Jeżeli użyty było by tylko jeden proces i jednego gniazda Netlink rozróżnienie takie musiało by być zaimplementowane. Ponieważ wcześniej opisany nagłówek wiadomości Netlink zawiera w sobie jedynie zmienną definiującą rodzaj komunikatu o nazwie `nlmsg_type`, który programista może użyć w implementacji własnego protokołu komunikacji, proces demona musiał by zaglądać do samego ładunku danej wiadomości w celu zweryfikowania z jakiego urządzenia ona pochodzi. Przydzielając jeden proces do jednego urządzenia tożsamość ta jest oczywista.
 
-Sprowadza to nas na właściwą ścieżkę w projektowaniu programu demona. Potrzebuje on jeden główny proces, który będzie oczekiwał na nowe połączenia od innych demonów na zdalnych maszynach nasłuchując na odpowiednim porcie TCP, jeden nowy proces na potrzeby każdego połączenia od klienta w celu obsłużenia go, czyli dla roli serwera, oraz nowy proces na potrzeby tworzenia połączeń z demonem na maszynie, która posiada rzeczywiste urządzenie, czyli dla roli klienta.
+Sprowadza to na właściwą ścieżkę w rozważaniach przy projektowaniu programu demona. Potrzebuje on jeden główny proces, który będzie oczekiwał na nowe połączenia od innych demonów na zdalnych maszynach nasłuchując na odpowiednim porcie TCP, jeden nowy proces na potrzeby każdego połączenia od klienta w celu obsłużenia go, czyli dla roli serwera, oraz nowy proces na potrzeby tworzenia połączeń z demonem na maszynie, która posiada rzeczywiste urządzenie, czyli dla roli klienta.
 
 Daje to nam dwie kategorie procesów:
 
@@ -754,7 +754,7 @@ Każda wiadomość Netlink zaczyna się od nagłówka zdefiniowanego przez przed
         __u32 nlmsg_pid;   /* identyfikator procesu źródłowego      */
     };
 
-Na długość wiadomości netlink składa się suma długości czterach elementów. Nagłówka, czyli 16 bajtów, wypełnienia (ang. padding), którego wielkość różni się w zależności od wielkości strony pamięci w systemie, ładunek(ang. payload) wiadomości, którego długość może osiągnąć nawet 213 Kilobajtów, oraz na sam koniec drugie wypełnienie wyrównujące wiadomość względem kolejnej w pamięci.
+Na długość wiadomości netlink składa się suma długości czterech elementów. Nagłówka, czyli 16 bajtów, wypełnienia (ang. padding), którego wielkość różni się w zależności od wielkości strony pamięci w systemie, ładunek(ang. payload) wiadomości, którego długość może osiągnąć nawet 213 Kilobajtów, oraz na sam koniec drugie wypełnienie wyrównujące wiadomość względem kolejnej w pamięci.
 
 Wartość 213 kilobajtów została określona na podstawie wielu testów wykonanych podczas rozwoju tego projektu. Nagłówek `include/linux/netlink.h` sugeruje maksymalną wielkość wiadomości Netlink przy pomocy stałej NLMSG_GOODSIZE. Jego wartość na systemie używanym do prowadzenia testów wynosiła 4096 bajtów. Jest to oczywiście bardzo mała wartość i dzielenie wszystkich danych wysyłanych lub odbieranych przez gniazda Netlink na tak małe części wpłynęło by katastroficznie na wydajność oprogramowania. Z tego powodu podjęta została decyzja by ograniczyć wielkość wiadomości Netlink przy pomocy stałej NETDEV_MESSAGE_LIMIT do 213 kilobajtów.
 
@@ -950,7 +950,7 @@ Tak wywołany nowy proces jest gotowy do obsłużenia żądania. Musi on jednak 
 
     /* znajdź urządzenie odpowiedzialne za to połączenie */
     nddata = ndmgm_find(nlh->nlmsg_pid);
-    
+
     /* wydobądź identyfikator `fo_access` z pierwszego pola ładunku */
     memcpy(&pid, NLMSG_DATA(nlh), sizeof(pid));
     acc = ndmgm_find_acc(nddata, pid);
@@ -1024,7 +1024,7 @@ Kluczowym krokiem jest wykonanie danej operacji. W przypadku wiadomości typu `M
         int err = 0;
         int flags = O_RDWR | O_LARGEFILE;
         int mode = 0;
-        
+
         /* otwórz plik urządzenia przypisanego do tego obiektu netdev_data */
         acc->filp = filp_open(acc->nddata->devname, flags, mode);
         if (IS_ERR(acc->filp)) {
@@ -1054,10 +1054,121 @@ Analogicznie wskaźniki do wszystkich innych operacji są dostępne pod `acc->fi
 
 ## Architektura demona
 
-### Podział na procesy
-### Użycie select()
+W rozdziale "[Sposób implementacji programu demona]" podjęta została decyzja by rozdzielić jego funkcjonalność na dwie odrębne klasy procesów. Proces nasłuchujący(ang. Listener), oczekujący nowych połączeń i tworzący nowe procesy w celu ich obsłużenia, oraz procesy pośredniczące(and. Proxy), który będzie pełnił rolę serwera lub klienta.
+
+Następne dwa rozdziały opisują te dwa rodzaje procesów i ich działanie.
+
+### Proces nasłuchujący
+
+Rola procesu nasłuchującego sprowadza się do tylko jednego zadania. Otwiera on gniazdo TCP/IP na porcie zdefiniowanym przez `NETDEV_SERVER_PORT` lub otrzymany jako argument `-p` w konsoli i wchodzi w nieskończoną pętlę `while` oczekując na nowe połączenia przy pomocy funkcji blokującej `accept()`.
+
+    while (1) {
+        /* oczekuj na nowe połączenia od klientów */
+        connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &clilen);
+        if (connfd < 0) {
+            if (errno == EINTR) {
+                continue;
+            } else {
+                perror("netdev_listener: accept error");
+            }
+        }
+
+        /* stwórz nowy proces do obsłużenia nowego połączenia od klienta */
+        if ( (childpid = fork()) ==0 ) {
+            /* zamniejsz licznik referencji gniazda nasłuchującego */
+            close(listenfd);
+            /* uruchom serwer w celu obsłużenia nowego klienta */
+            proxy_server(connfd);
+            /* zakończ proces */
+            exit(0);
+        }
+
+        /* zmniejsz licznik referencji gniazda połączenia z klientem */
+        close(connfd);
+    }
+
+Ponieważ proces nasłuchujący musi tworzyć nowe procesy pośredniczące kluczowe jest aby sprzątał on po wszystkich procesach, które zakończą swoje działanie. W tym celu rejestruje on obsługę sygnału `SIGCHLD` przy pomocy funkcji `parent_sig_chld`.
+
+    signal(SIGCHLD, parent_sig_chld);
+
+Jej jedyna rola to wywoływanie `waitpid()` w celu uniknięcia zaśmiecania systemu procesami zablokowanymi w stanie "zombi":
+
+    void parent_sig_chld(int signo) {
+        pid_t pid;
+        int stat;
+        printf("sig_chld: received signal\n");
+
+        while ( (pid = waitpid(-1, &stat, WNOHANG)) > 0 ) {
+            printf("ALERT: child %d terminated\n", pid);
+        }
+        return;
+    }
+
+Jak widać jest to bardzo prosta funkcjonalność. Prawdziwa praca jest wykonywana przez proces pośredniczący.
+
+### Proces pośredniczący
+
+Poza ustanawianiem nowych połączeń, weryfikacją wersji protokołów i rejestrowaniem urządzeń na samym starcie funkcja procesu pośredniczącego demona sprowadza się do przyjmowania wiadomości z gniazda Netlink i przekazywania ich do gniazda sieciowego lub vice versa. Bez względu na to czy wypełnia funkcje serwera czy klienta zasada działania jest ta sama. Przekazuje on wszystkie operacje plikowe z jednego jądra do drugiego po drodze w postaci dwóch połączeń Netlink i jednego połączenia TCP,
+
+Głównym punktem w procesie pośredniczącym, jest funkcja `proxy_loop()`, która korzysta z jednej z głównych funkcji interfejsu gniazd BSD, funkcji `select()`.
+
+    int select(int nfds, fd_set *readfds, fd_set *writefds,
+               fd_set *exceptfds, struct timeval *timeout);
+
+Jej zachowanie nadaje się idealnie do obsługi dwóch lub więcej deskryptorów plików jednocześnie. Argument `nfds` przyjmuje maksymalny numer deskryptora pliku jaki ma odpytać. Spowodowane to jest faktem, że w systemach z rodziny Unix wszystkie deskryptory używane przez dowolny proces liczone są od `0` wzwyż. Pierwsze trzy domyślne deskryptory dla każdego procesu zajmujące numery 0, 1 i 2 opisują odpowiednio standardowe wejście, standardowe wyjście oraz wyjście błędów. Trzy argumenty typu `fd_set` określają na których deskryptorach istniejących w danym procesie funkcja `select()` ma nasłuchiwać nowych wydarzeń. Pierwszy argument odpowiada za deskryptory dla których `select()` ma informować o możliwości odczytu, drugi o możliwości zapisu a trzeci o pojawieniu się wyjątków. Ostatni argument określa czas przez jaki funkcja ma blokować proces ją wywołujący. W przypadku użycia wartości NULL oczekuje on w nieskończoność lub do pojawienia się jakiegoś sygnału.
+
+Typ `fd_set` jest wyjątkowo prosty w budowie. Jest to w rzeczywistości typu `int` o długości 32 bitów. Przechowuje on numery deskryptorów jakie mają być obsłużone przez `select()` w poszczególnych bitach tej zmiennej. Innymi słowy deskryptor pliku o wartości `4` będzie reprezentowany w typie danych `fd_set` przez czwarty bit ustawiony na `1`. Oczywiście czasami programy korzystają z więcej niż 32 deskryptorów plików. Wtedy do funkcji `select()` można przekazać tablicę obiektów typu `fd_set`. Funkcja `select()` określa jak daleko w takiej tablicy ma zaglądać na podstawie wartości `nfds`.
+
+Do obsługi typów `fd_set` istnieją cztery makra:
+
+* `FD_ZERO(fd_set *fdset);` - Wyzerowanie wszystkich bitów.
+* `FD_SET(int fd, fd_set *fdset);` - Ustawienie bitu dla deskryptora `fd`.
+* `FD_CLR(int fd, fd_set *fdset);` - Wyzerowanie bitu dla deskryptora `fd`.
+* `FD_ISSET(int fd. fd_set *fdset);` - Sprawdzenie czy bit dla `fd` jest ustawiony.
+
+Argumenty typu `fd_set` są argumentami-wynikami czyli po powrocie z funkcji `select()` przedstawiają one te deskryptory plików, które spowodowały powrót z funkcji. Oczywiście możliwy jest powrót bez gotowości któregokolwiek z deskryptorów spowodowany błędem lub otrzymanym sygnałem. Wartość `int` zwracana  przez `select()` określa ilość gotowych deskryptorów. Gdy wartość ta wynosi `0` przekroczony został czas oczekiwania zdefiniowany przez `timeout`. Wartość `-1` oznacza błąd. Dokładny powód błędu można odczytać z wartości `errno`.
+
+Główna pętla w funkcji `proxy_loop()` wykorzystuje `select()` w celu jednoczesnego obsłużenia gniazda Netlink połączonego z modułem jądra `netdev` oraz gniazda TCP/IP połączonego ze zdalną maszyną:
+
+    int proxy_loop(struct proxy_dev *pdev)
+    {
+        int maxfd, nready;
+        fd_set rset;
+
+        while (1) {
+            FD_ZERO(&rset);
+            FD_SET(pdev->nl_fd, &rset);
+            FD_SET(pdev->rm_fd, &rset);
+            maxfd = max(pdev->nl_fd, pdev->rm_fd);
+            maxfd++;
+
+            if ((nready = select(maxfd, &rset, NULL, NULL, NULL)) == -1) {
+                perror("proxy_loop(select)");
+                return -1; /* failure */
+            }
+
+            if (FD_ISSET(pdev->nl_fd, &rset)) {
+                if (proxy_handle_netlink(pdev) == -1) {
+                    return -1;
+                }
+            }
+
+            if (FD_ISSET(pdev->rm_fd, &rset)) {
+                if (proxy_handle_remote(pdev) == -1) {
+                    return -1;
+                }
+            }
+        }
+        return 0; /* success */
+    }
+
+Ponieważ argumenty `fd_set` są argumentami-wynikami ich wartość jest zmieniana po każdym powrocie z funkcji `select()`. Z tego powodu niezbędne jest każdorazowe wyczyszczenie danej zmiennej `rset` i ponowne ustawienie bitów dla deskryptorów plików gniazd, które chcemy obsługiwać przy pomocy `FD_SET()`. Po bezbłędnym powrocie z `select()` dwie instrukcje `if` weryfikują które deskryptory są gotowe do obsługi z użyciem `FS_ISSET()` i wywołują odpowiednią funkcje obsługi.
+
+Funkcje obsługi weryfikują typ wiadomości i jeżeli typ znajduje się w zakresie pomiędzy `MSGT_FO_START` oraz `MSGT_FO_END` wiadomość uznawana jest za operację plikową i przesyłana jest do jądra jeżeli wiadomość przyszła ze zdalnej maszyny lub do zdalnej maszyny jeżeli przyszła z jądra.
 
 # Wyniki
+
+Głównym powodem implementacji tego projektu było udostępnianie urządzeń znakowych poprzez sieć. Kluczowym jest więc porównanie wydajności osiągniętej za pośrednictwem modułu `netdev` oraz demona `netdevd` o normalnym odczytem czy zapisem do urządzenia znakowego lokalnie.
 
 ## Porównanie prędkości transmisji danych
 ## Porównanie opóźnień
