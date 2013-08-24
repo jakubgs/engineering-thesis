@@ -1414,7 +1414,7 @@ Funkcje obsługi weryfikują typ wiadomości i jeżeli typ znajduje się w zakre
 
 \section{Wyniki}
 
-Głównym powodem implementacji tego projektu było udostępnianie urządzeń znakowych poprzez sieć. Kluczowym jest więc porównanie wydajności osiągniętej za pośrednictwem modułu \texttt{netdev} oraz demona \texttt{netdevd} o normalnym odczytem czy zapisem do urządzenia znakowego lokalnie.
+Głównym powodem implementacji tego projektu było udostępnianie urządzeń znakowych poprzez sieć. Kluczowym jest więc porównanie wydajności osiągniętej za pośrednictwem modułu \texttt{netdev} oraz demona \texttt{netdevd} a normalnym odczytem czy zapisem do lokalnego urządzenia znakowego.
 
 \subsection{Porównanie prędkości transmisji danych}
 
@@ -1439,24 +1439,29 @@ W celu zweryfikowania maksymalnej prędkości transmisji danych jaką udostępni
 
 Prędkość kopiowania danych z urządzenia \texttt{/dev/zero} do \texttt{/dev/null} na w środowisku lokalnym przy użyciu narzędzia \texttt{dd} wacha się pomiędzy 1 GB/s a 10 GB/s w zależności od obciążenia systemu w danym momencie ale nawet najwolniejsze przypadki są szybsze niż sieć lokalna wykorzystana w testach oprogramowania \texttt{netdev}.
 
-\begin{figure}[H]
-    \caption{Przepustowość odczytu z \texttt{/dev/netdev\_zero} do \texttt{/dev/null}}
-    \includegraphics[width=\linewidth]{speeddevnullread}
-\end{figure}
+Testy zostały wykonane z użyciem buforów o różnym rozmiarze zaczynając od 1 Kilobajta włączając wszystkie kolejne potęgi o podstawie dwa aż do limitu wielkości bufora wyznaczonego przez \texttt{NETDEV\_MESSAGE\_LIMIT} czyli 213 Kilobajtów. Sieć lokalna, w której przeprowadzone zostały testy posiadała przepustowość 1000 Megabitów na sekundę. Każdy test obejmował 1 Gigabajt danych i został wykonany dziesięć razy. Z wyników została wyciągnięta średnia.
+
+Poniżej przedstawione są wyniki dla transmisji danych z urządzenia-atrapy \texttt{/dev/netdev\_zero} do \texttt{/dev/null}:
 
 \begin{figure}[H]
-    \caption{Przepustowość zapisu z \texttt{/dev/zero} do \texttt{/dev/netdev\_null}}
-    \includegraphics[width=\linewidth]{speeddevnullwrite}
+    \caption{Przepustowość odczytu z \texttt{netdev\_zero} i zapisu do \texttt{netdev\_null}}
+    \includegraphics[width=\linewidth]{speeddevzerocomp}
 \end{figure}
 
-Trochę więcej tekstu.
+Od razu widoczna jest bezpośrednia zależność pomiędzy wielkością użytego bufora a prędkością jaka była osiągnięta. Im mniejszy bufor tym większy koszt wysyłania poszczególnych operacji plikowych przy pomocy protokołów Netlink oraz TCP/IP\@. Mniejszy bufor oznacza większy narzut spowodowany wielkością nagłówka i wypełnienia oraz potrzebą oczekiwania na wiadomości potwierdzające zarazem w protokole Netlink jak it TCP\@.
+
+Zaczynając od wielkości 64 Kilobajtów wzrost wydajności transmisji zaczyna maleć a różnica pomiędzy buforami o wielkości 128 KB i 200 KB jest już nieznaczna. Oczywiście większość programów nie korzysta z buforów tak małych jak 2 czy 4 KB\@. Dla większości programów w środowisku GNU/Linux domyślna wielkość bufora odczytu to 64 KB co daje optymalną wydajność.
+
+W przypadku zapisywania danych bufor jest zazwyczaj przystosowany do ilości jaka jest zapisywana. Jeżeli jednak ilość danych wykracza poza pojedyńcze wykonanie operacji \texttt{write()} to w tym przypadku również wielkość bufora zazwyczaj wynosi 64 KB\@. Zastanawiająca jest jednak różnica pomiędzy wydajnością operacji odczytu a operacją zapisu.
+
+Kolejny test ma na celu porównanie wydajności odczytu z rzeczywistego urządzenia znakowego istniejącego w systemie w porównaniu do dostępu zdalnego poprzez oprogramowanie netdev. Doskonale nadającym się do tego zastosowania jest urządzenie bufora ramki \texttt{/dev/fb0}. Jest to urządzenie znakowe, które udostępnia abstrakcjny interfejs do urządzenia graficznego dostepnego w systemie\footnote{\url{http://www.tldp.org/HOWTO/Framebuffer-HOWTO/}} i jest podstawą działania konsoli dostępnej w systemach GNU/Linux tuż po załadowaniu systemu. Urządzenie to doskonale nadaje się do porównywania prędkości odczytu ponieważ udostępnia ono za każdym otwarciem tylko jedną ramkę obrazu o wielkości 50 kilobajtów i zawsze udostępnia ją z taką samą prędkością która średnio wynosi około 14.55 megabajtów na sekunde. Będzie ona dobrym punktem odniesienia dla wydajności jaką osiągnie urządzenie-atrapa.
 
 \begin{figure}[H]
     \caption{Przepustowość odczytu z \texttt{/dev/netdev\_fb0} do \texttt{/dev/null}}
     \includegraphics[width=\linewidth]{speeddevfb0}
 \end{figure}
 
-Końcowy tekst.
+Ponownie widoczny jest ten sam trend zwiększającej się wydajności w miarę zwiększania wielkości bufora odczytu. Ponownie optymalna prędkośc osiągana jest przy buforze o wielkości 64 kilobajtów i różnice stają się coraz mnej istotne w przypadku wielkości 128 oraz 200 kilobajtów. Urządzenie-atrapa osiąga 72.7\% prędkości rzczywistego urządzenia dla 64 kilobajtów oraz odpowiednio 75.3\% i 79.2\% dla 128 i 200 kilobajtów. Jest to zadowalający wynik biorąc pod uwagę drogę jaką musi pokonać każdy odczytany bufor z danymi.
 
 \subsection{Porównanie opóźnień}
 
@@ -1464,7 +1469,7 @@ Test
 
 \subsection{Identyfikacja wąskich gardeł}
 
-\subsection{Proponowane możliwe zmiany w architekturze/poprawki}
+\subsection{Możliwe poprawki w architekturze}
 
 \section{Podsumowanie}
 \section{Dodatki}
