@@ -4,6 +4,7 @@
 \usepackage{polski}
 \usepackage{hyperref}
 \usepackage{graphicx}
+\usepackage{float}
 \graphicspath{{./grafiki/}}
 
 % zmniejszenie czcionki verbatim
@@ -1417,23 +1418,47 @@ Głównym powodem implementacji tego projektu było udostępnianie urządzeń zn
 
 \subsection{Porównanie prędkości transmisji danych}
 
-Test
+Testy prędkości transmisji danych zostały wykonane przy pomocy narzędzia \texttt{dd}\footnote{Część podstawowego pakietu narzędzi systemowych GNU Coreutils. \url{https://www.gnu.org/software/coreutils/}}, które jest prosty narzędziem do kopiowania danych z jednego pliku do drugiego i liczy czas oraz prędkość operacji. Pozwala również podawać jako argumenty ustawienia ułatwiające testowanie:
 
-\begin{figure}[h]
-    \caption{Przepustowość z /dev/netdev\_null do /dev/null}
-    \includegraphics[width=\linewidth]{speeddevnull}
+\begin{itemize}
+    \item \texttt{bs} - Przyjmuje wielkość bufora odczytu lub zapisu w bajtach lub innych jednostkach.
+    \item \texttt{count} - Przyjmuje ilość buforów jakie ma odczytać lub zapisać do docelowego pliku.
+    \item \texttt{conv} - Dodatkowe opcje kopiowania.
+\end{itemize}
+
+W celu zapewnienie poprawnego wyniku użyta została opcja \texttt{conv=fdatasync} by zapewnić że wszystkie operacje zapisu lub odczytu się zakończą zanim program \texttt{dd} zwróci kontrolę i poda czas oraz prędkość transmisji. Przy użyciu argumentu \texttt{bs} przetestowany został wpływ wielkości bufora na wydajność zapisywania lub odczytywania danych do urządzeń znakowych. Argument \texttt{count} pozwolił określić ilość danych jakie miały być przesłane w trakcie jednego testu. Przykładowy test sprawdzający przepustowość zapisu danych z urządzenia \texttt{/dev/zero} do urządzenia-atrapy \texttt{/dev/netdev_null} 128 Megabajtów przy uzyciu buforów o wielkości 128 Kilobajtów wyglądał by następująco:
+
+\begin{verbatim}
+dd if=/dev/zero of=/dev/netdev_null bs=128KB count=1000 conv=fdatasync
+1000+0 records in
+1000+0 records out
+128000000 bytes (128 MB) copied, 6.0643427 s, 21.1 MB/s
+\end{verbatim}
+
+W celu zweryfikowania maksymalnej prędkości transmisji danych jaką udostępnia oprogramowanie \texttt{netdev} niezbędne jest użycia znakowego, które nie ma odgraniczeń jeżeli chodzi o generowanie danych oraz cel
+
+\begin{figure}[H]
+    \caption{Przepustowość odczytu z /dev/netdev\_zero do /dev/null}
+    \includegraphics[width=\linewidth]{speeddevnullread}
 \end{figure}
 
-Test
+\begin{figure}[H]
+    \caption{Przepustowość zapisu z /dev/zero do /dev/netdev\_null}
+    \includegraphics[width=\linewidth]{speeddevnullwrite}
+\end{figure}
 
-\begin{figure}[h]
-    \caption{Przepustowość z /dev/netdev\_fb0 do /dev/null}
+Trochę więcej tekstu.
+
+\begin{figure}[H]
+    \caption{Przepustowość odczytu z /dev/netdev\_fb0 do /dev/null}
     \includegraphics[width=\linewidth]{speeddevfb0}
 \end{figure}
 
-Test Test
+Końcowy tekst.
 
 \subsection{Porównanie opóźnień}
+
+Test
 
 \subsection{Identyfikacja wąskich gardeł}
 
@@ -1455,7 +1480,7 @@ Test Test
 \item
   Pełen kod źródłowy projektu w folderze \texttt{netdev}
 \item
-  Katalog \texttt{.git} zawierający cały opis historii rozwoju projektu
+  Katalog \texttt{netdev/.git} zawierający cały opis historii rozwoju projektu
   zawarty w bazie danych systemu kontroli wersji Git
 \end{itemize}
 
@@ -1473,14 +1498,14 @@ Test Test
     \url{http://gcc.gnu.org/onlinedocs/gcc/Return-Address.html},
     Return Address Builtin Function.
 
+\bibitem{netlinkchange}
+    \url{http://www.spinics.net/lists/netfilter-devel/msg22338.html},
+    Netlink Configuration Change.
+
 \bibitem{linuxkerneldevel}
     \textit{Linux Kernel - Przewodnik Programisty},
     Robert Love,
     2004.
-
-\bibitem{netlinkchange}
-    \url{http://www.spinics.net/lists/netfilter-devel/msg22338.html},
-    Netlink Configuration Change.
 
 \bibitem{ldd}
     \textit{Linux Device Drivers},
