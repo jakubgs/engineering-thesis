@@ -22,8 +22,8 @@
 
 \end{titlepage}
 
-\begin{document}
 \tableofcontents
+\begin{document}
 
 \newpage
 \section{Wstęp}
@@ -120,7 +120,7 @@ Dzięki wprowadzeniu tego modelu wszystkie sterowniki poszczególnych systemów 
 
 Z punktu widzenia sterowników urządzeń najbardziej kluczowymi obiektami są i-węzły oraz pliki. Obiekt pliku posiada jedną z najważniejszych struktury w całym jądrze Linux o nazwie \texttt{file\_operations}, zapisaną jako atrybut \texttt{f\_op}, która posiada kolekcję wskaźników do funkcji które pozwalają wykonywać takie operacje jak \texttt{open}, \texttt{read}, \texttt{write} czy \texttt{close}. Wszystkie urządzenia znakowe oraz blokowe muszą implementować podstawowy zestaw operacji reprezentowany przez tą strukturę i prawie każda z nich bierze jako argument obiekt pliku. Niektóre biorą również obiekt i-węzła. Dzięki temu sterownik otrzymuje niezbędne informacje odnośnie tego, który plik urządzenia został otwarty.
 
-Struktura \texttt{file\_operations} jest kluczowym interfejsem który pozwala ukryć ogromną różnorodność urządzeń pod zestawem prostych operacji, z których każdy proces w przestrzeni użytkownika może skorzystać bez rozróżniania pomiędzy typami urządzeń. Struktura ta jest zdefiniowana razem z wcześniej wymienionymi strukturami w pliku \texttt{include/linux/fs.h} i wygląda następująco:
+Struktura \texttt{file\_operations} jest kluczowym interfejsem który pozwala ukryć ogromną różnorodność urządzeń pod zestawem prostych operacji, z których każdy proces w przestrzeni użytkownika może skorzystać bez rozróżniania pomiędzy typami urządzeń. Struktura ta jest zdefiniowana razem z wcześniej wymienionymi strukturami w pliku \texttt{include/linux/fs\.h} i wygląda następująco:
 
 \newpage
 \begin{verbatim}
@@ -162,7 +162,7 @@ struct file_operations {
 };
 \end{verbatim}
 
-W celu udostępnienia urządzenia znakowego na urządzeniu połączonym przez sieć kluczowe jest stworzenie ``fałszywego'' pliku urządzenia na komputerze klienckim, udostępnienie zestawu niezbędnych operacji plikowych i przekazanie wszystkich ich wywołań do maszyny posiadającej rzeczywiste urządzenie, a następnie przekazanie wyniku wywołania tej operacji z powrotem do maszyny klienckiej. Dokładniej ten proces będzie implementować ten projekt. \emph{Przekazywanie operacji plikowych z jednej maszyny do drugiej będzie główną funkcją oprogramowania stworzonego w ramach tego projektu.}
+W celu udostępnienia urządzenia znakowego na urządzeniu połączonym przez sieć kluczowe jest stworzenie "fałszywego" pliku urządzenia na komputerze klienckim, udostępnienie zestawu niezbędnych operacji plikowych i przekazanie wszystkich ich wywołań do maszyny posiadającej rzeczywiste urządzenie, a następnie przekazanie wyniku wywołania tej operacji z powrotem do maszyny klienckiej. Dokładniej ten proces będzie implementować ten projekt. \emph{Przekazywanie operacji plikowych z jednej maszyny do drugiej będzie główną funkcją oprogramowania stworzonego w ramach tego projektu.}
 
 Urządzenie znakowe nie musi jednak implementować wszystkich operacji.  Przykładem operacji bezużytecznych dla plików urządzeń jest funkcja \texttt{readdir()}, która ma sens tylko i wyłącznie dla plików które są katalogami, oraz \texttt{sendpage()}, która przeznaczona jest raczej dla urządzeń sieciowych takich jak gniazda Unix. Inne operacje takie jak asynchroniczne \texttt{aio\_read()} i \texttt{aio\_write()} są rzadko implementowane dla urządzeń i prawie zawsze wartość ich wskaźnika wynosi \texttt{NULL} co sprawia że kernel po prostu używa zwykłych funkcji \texttt{read()} oraz \texttt{write()}.
 
@@ -181,7 +181,7 @@ Wszystkie urządzenia w systemie linux jak i sterowniki które implementują ich
 \item
   Sterownik(Driver) - Struktura ta opisuje i wskazuje na konkretny sterownik, również nazywany modułem, załadowany w systemie i pozwala na wykonywanie podstawowych operacji na sterownikach takich jak ich zatrzymywanie, uruchamianie, odpytywanie czy wyłączanie i usuwanie sterownika. Implementacja tego obiektu to struktura \texttt{device\_driver}, która przechowuje takie informacje jak nazwa sterownika, prywatne dane sterownika czy rodzaj szyny, z której dany sterownik obsługuje należące do niego urządzenia.
 \item
-  Urządzenie(Device) - Na prawie najniższym poziomie istnieje struktura urządzenia, która pozwala zdefiniować konkretną instancje obsługiwanego fizycznego lub wirtualnego urządzenia oraz plik reprezentujący je w wirtualnym systemie plików \texttt{/dev} (devfs).  Zdefiniowany jako struktura o nazwie \texttt{device} zawiera duży zbiór informacji na temat urządzenia do którego jest przypisany, w tym urządzenie macierzyste, prywatne dane modułu sterownika, szynę do której jest przyłączony, sterownik który obsługuje dane urządzenie czy numery \texttt{major}(będziemy go nazywać numerem ``dur'') oraz \texttt{minor}(który nazywany będzie ``moll''), które identyfikują wszystkie sterowniki i urządzenia w systemie.
+  Urządzenie(Device) - Na prawie najniższym poziomie istnieje struktura urządzenia, która pozwala zdefiniować konkretną instancje obsługiwanego fizycznego lub wirtualnego urządzenia oraz plik reprezentujący je w wirtualnym systemie plików \texttt{/dev} (devfs).  Zdefiniowany jako struktura o nazwie \texttt{device} zawiera duży zbiór informacji na temat urządzenia do którego jest przypisany, w tym urządzenie macierzyste, prywatne dane modułu sterownika, szynę do której jest przyłączony, sterownik który obsługuje dane urządzenie czy numery \texttt{major}(będziemy go nazywać numerem "dur") oraz \texttt{minor}(który nazywany będzie "moll"), które identyfikują wszystkie sterowniki i urządzenia w systemie.
 \end{itemize}
 
 Wszystkie te kluczowe struktury są zdefiniowane w pliku nagłówkowym \texttt{include/linux/device.h} wraz z dużą ilością komentarzy opisujących zwierające się w nich atrybuty, struktury oraz wskaźniki do funkcji. Wraz z wieloma innymi mniej ważnymi strukturami, które są zazwyczaj atrybutami tych kluczowych struktur, tworzą one model sterowników urządzeń w jądrze Linux.
@@ -245,7 +245,7 @@ Struktura ta nie jest jednak tworzona i wypełniana przez programistę.  Jądro 
   \texttt{void cdev\_del(struct cdev *);} - Usuwa urządzenie z systemu oraz zmniejsza licznik referencji zawarty w k-obiekcie. W efekcie może to spowodować zwolnienie pamięci przeznaczonej dla struktury gdy licznik referencji osiągnie 0.
 \end{itemize}
 
-Funkcje te są zdeklarowane w pliku \texttt{include/linux/cdev.h} oraz zdefiniowane w pliku \texttt{fs/char\_dev.c}. Poza wywołaniem funkcji \texttt{cdev\_alloc()}, \texttt{cdev\_init()} oraz \texttt{cdev\_add()} w odpowiedniej kolejności sterownik nie musi w żaden sposób operować na strukturze \texttt{cdev} aż do momentu, w którym gotowy jest usunąć urządzenie i wywołuje \texttt{cdev\_del()}. Poza tym struktura \texttt{cdev} pozostaje dostępna raczej jako repozytorium informacji o urządzeniu raczej niż aktywnie modyfikowany obiekt w trakcie działania urządzenia.
+Funkcje te są zdeklarowane w pliku \texttt{include/linux/cdev.h} oraz zdefiniowane w pliku \texttt{fs/char\_dev\.c}. Poza wywołaniem funkcji \texttt{cdev\_alloc()}, \texttt{cdev\_init()} oraz \texttt{cdev\_add()} w odpowiedniej kolejności sterownik nie musi w żaden sposób operować na strukturze \texttt{cdev} aż do momentu, w którym gotowy jest usunąć urządzenie i wywołuje \texttt{cdev\_del()}. Poza tym struktura \texttt{cdev} pozostaje dostępna raczej jako repozytorium informacji o urządzeniu raczej niż aktywnie modyfikowany obiekt w trakcie działania urządzenia.
 
 W celu przechowywania dokładniejszych danych o naszym urządzeniu sterownik będzie musiał stworzyć własną wewnętrzną strukturę reprezentującą urządzenie. Zostanie to opisane w rozdziale "\nameref{mainstructs}".
 
@@ -338,13 +338,13 @@ Dodatkowo pokrewieństwo gniazd Netlink z gniazdami TCP/IP\@ jest kolejnym ułat
 
 Istnieją dwa podstawowe typy protokołów internetowych: TCP oraz UDP\. Oba spełniają kluczowe role i oba mają swoje wady. Wybranie odpowiedniego protokołu na potrzeby tego projektu będzie miało bezpośredni wpływ na niezawodność i wydajność oprogramowania.
 
-TCP to akronim z języka angielskiego: ``Transmission Control Protocol'', i jest protokołem połączeniowym, co oznacza, iż obie strony połączenia utrzymują aktywne sesje tak długo jak trwa połączenia które zapewniają między innymi dostarczenie wysłanych wiadomości i ponowne ich przesyłanie w razie problemów z połączeniem oraz otrzymanie ich w poprawnej kolejności. TCP gwarantuje że dane wysłane przez jedną stronę połączenia dotrą w całości i w poprawnej kolejności albo nie dotrą w ogóle co zazwyczaj spowoduje utratę połączenia i zakończenie sesji. Dodatkowo lub może przede wszystkim TCP pozwala na kontrole szybkości przesyłania danych poprzez modyfikowanie wielkości tak zwanego ``okna''. TCP na bieżąco kontroluje jak szybko druga strona jest w stanie odbierać dane, które są przesyłane i modyfikuje wielkość ``okna'' w celu dopasowania szybkości wysyłania danych do szybkości z jaką drugi koniec połączenie jest w stanie jest odbierać.
+TCP to akronim z języka angielskiego: "Transmission Control Protocol", i jest protokołem połączeniowym, co oznacza, iż obie strony połączenia utrzymują aktywne sesje tak długo jak trwa połączenia które zapewniają między innymi dostarczenie wysłanych wiadomości i ponowne ich przesyłanie w razie problemów z połączeniem oraz otrzymanie ich w poprawnej kolejności. TCP gwarantuje że dane wysłane przez jedną stronę połączenia dotrą w całości i w poprawnej kolejności albo nie dotrą w ogóle co zazwyczaj spowoduje utratę połączenia i zakończenie sesji. Dodatkowo lub może przede wszystkim TCP pozwala na kontrole szybkości przesyłania danych poprzez modyfikowanie wielkości tak zwanego "okna". TCP na bieżąco kontroluje jak szybko druga strona jest w stanie odbierać dane, które są przesyłane i modyfikuje wielkość "okna" w celu dopasowania szybkości wysyłania danych do szybkości z jaką drugi koniec połączenie jest w stanie jest odbierać.
 
 Nadaje się on doskonale do zastosowań, w których niedopuszczalne jest utracenie części lub całości pojedynczych pakietów z transmisji. Dzięki kontroli przepływu danych TCP daje programiście pewność, iż dane dotrą nienaruszone lub program zostanie poinformowany przez odpowiedni kod błędu o utracie połączenia. Przykładowe protokoły warstwy aplikacji, które korzystają z TCP to HTTP, SMTP, IMAP, SSH, FTP i wiele wiele innych.
 
-Niestety protokół TCP w celu utrzymania swojego standardu niezawodności dodaje zauważalny koszt do komunikacji. Nie tylko w formie dość dużego nagłówka dodawanego do każdego pakietu TCP ale również w postaci opóźnień spowodowanych potrzebą ustanawiania sesji przez zestaw pakietów kontrolnych w tak zwanym trzy stopniowym uścisku (``3-way handshake'') oraz potrzeby odsyłania potwierdzeń o odebranych danych. Wszystkie te koszta sprawiają, iż TCP nie nadaje się do zastosowań, w których bardziej ceni się działanie w czasie rzeczywistym.
+Niestety protokół TCP w celu utrzymania swojego standardu niezawodności dodaje zauważalny koszt do komunikacji. Nie tylko w formie dość dużego nagłówka dodawanego do każdego pakietu TCP ale również w postaci opóźnień spowodowanych potrzebą ustanawiania sesji przez zestaw pakietów kontrolnych w tak zwanym trzy stopniowym uścisku (ang. 3-way handshake") oraz potrzeby odsyłania potwierdzeń o odebranych danych. Wszystkie te koszta sprawiają, iż TCP nie nadaje się do zastosowań, w których bardziej ceni się działanie w czasie rzeczywistym.
 
-Między innymi z tego powodu powstał protokół UDP, z angielskiego ``User Datagram Protocol''. W przeciwieństwie do TCP nie gwarantuje on praktycznie niczego programiście poza tym że będzie szybki. Nie posiada on żadnej kontroli przepływu danych, poprawności danych, sprawdzania kolejności w jakiej dane się pojawiają u odbiorcy czy metody potwierdzenia odbioru. W skrócie UDP jest protokołem bezpołączeniowym. Daje to jednak szereg zalet, które są kluczowe dla aplikacji mających do czynienia z danymi, które bardzo szybko tracą ważność. Wiele usług przesyłających obraz wideo lub komunikacje głosową korzysta z UDP z tego właśnie powodu. Aplikacje pozwalające na prowadzenie telekonferencji znacznie bardziej traciły by na używalności gdyby wszystkie dane docierały z prawie sekundowym opóźnieniem niż gdyby pare klatek na minutę zostało upuszczonych w trakcie przesyłania.
+Między innymi z tego powodu powstał protokół UDP, z angielskiego "User Datagram Protocol". W przeciwieństwie do TCP nie gwarantuje on praktycznie niczego programiście poza tym że będzie szybki. Nie posiada on żadnej kontroli przepływu danych, poprawności danych, sprawdzania kolejności w jakiej dane się pojawiają u odbiorcy czy metody potwierdzenia odbioru. W skrócie UDP jest protokołem bezpołączeniowym. Daje to jednak szereg zalet, które są kluczowe dla aplikacji mających do czynienia z danymi, które bardzo szybko tracą ważność. Wiele usług przesyłających obraz wideo lub komunikacje głosową korzysta z UDP z tego właśnie powodu. Aplikacje pozwalające na prowadzenie telekonferencji znacznie bardziej traciły by na używalności gdyby wszystkie dane docierały z prawie sekundowym opóźnieniem niż gdyby pare klatek na minutę zostało upuszczonych w trakcie przesyłania.
 
 Problem z UDP polega na tym, iż sama aplikacja jest teraz odpowiedzialna za obsługiwanie otrzymanych danych w poprawnej kolejności lub weryfikowanie czy przesłane dane nie są uszkodzone. Bardzo często robienie tego jest bardziej kosztowne niż było by po prostu użycie bardziej bezpiecznego protokołu TCP\. Dodatkowo brak kontroli szybkości przepływu danych może łatwo spowodować przesycenie przepustowości sieci, z której korzysta aplikacja i doprowadzenie jej do stanu, w którym jest nieużywalna.
 
@@ -356,7 +356,7 @@ Z uwagi na to podjęta została decyzja by użyć protokołu TCP w implementacji
 
 Każdy programista piszący programy korzystające z jakiegokolwiek protokołu komunikacji sieciowej musi dobrze zdawać sobie sprawę z problemu serializacji danych przy ich wysyłaniu oraz odbieraniu. Problem serializacji wynika z kilku kwestii. Jednym z głównych czynników jest kolejność bajtów(ang. Endianess) w liczbach całkowitych czy zmiennoprzecinkowych, których wielkość wynosi przynajmniej dwa bajty. Główne dwa rodzaje kolejności bajtów to kolejność Big-endian, w której ważniejszy bajt jest zapisywany w komórce pamięci o najniższym adresie oraz Little-endian, w którym najmniej ważny bat jest zapisywany w komórce o najniższym adresie. Kolejność ta zależy od platformy i jej architektury na jakiej dany program jest uruchamiany.
 
-Obecnie najpopularniejsze architektury takie jak x86 czy x86-64 wykorzystują kolejność little-endian. Big-endian jest raczej formatem używanym w systemach wbudowanych lub niektórych urządzeniach przenośnych takich jak komórki. Układ Big-endian jest również znany jako ``konwencja Motoroli'' jako że ich procesory jako jedne z pierwszych używały układu Big-endian na dużą skalę. Inne przykłady to coraz rzadziej spotykane systemy IBM POWER lub IBM System 360 i 370. Dodatkowo większość popularnych architektur takich jak MIPS, SPARC, ARM, czy PowerPC pozwalają zmieniać kolejność bajtów podczas uruchamiania systemu(zmiana nie jest możliwa w trakcie działania systemu).
+Obecnie najpopularniejsze architektury takie jak x86 czy x86-64 wykorzystują kolejność little-endian. Big-endian jest raczej formatem używanym w systemach wbudowanych lub niektórych urządzeniach przenośnych takich jak komórki. Układ Big-endian jest również znany jako "konwencja Motoroli" jako że ich procesory jako jedne z pierwszych używały układu Big-endian na dużą skalę. Inne przykłady to coraz rzadziej spotykane systemy IBM POWER lub IBM System 360 i 370. Dodatkowo większość popularnych architektur takich jak MIPS, SPARC, ARM, czy PowerPC pozwalają zmieniać kolejność bajtów podczas uruchamiania systemu(zmiana nie jest możliwa w trakcie działania systemu).
 
 Dodatkowym problemem jest kwestia różnej wielkości podstawowych typów danych takich jak \texttt{int} czy \texttt{long} pomiędzy platformami. Najbardziej kluczowa jest ta różnica pomiędzy platformami 32 i 64 bitowymi które może zmienić długość takich typów jak \texttt{long} który musi być przynajmniej 32 bitowy ale może być większy.
 
@@ -367,7 +367,7 @@ W przyszłości możliwe będzie rozszerzenie kodu o warstwę zapewniającą pop
 \subsection{Sposób implementacji programu demona}
 \label{daemonimplementation}
 
-Z uwagi na to że podjęta została decyzja aby zamknąć funkcjonalność serwera oraz klienta w jednym programie przestrzeni użytkownika, który nazywać będziemy demonem, kluczowe jest rozdzielenie poszczególnych funkcji pomiędzy odrębne procesy. W przypadku normalnych programów udostępniających różnego rodzaju usługi rozsądnym pomysłem jest użycie wątków jako że zarządzanie nimi jest dość proste dzięki bibliotece wątków POSIX zwanej pthrea\footnote{https://computing.llnl.gov/tutorials/pthreads/}. Niestety specyfika naszego programu wynikająca z potrzeby komunikowania się z przestrzenią jądra za pośrednictwem gniazd Netlink sprawia że niezbędnym jest aby wątki komunikujące się z jądrem posiadały swój własny odrębny identyfikator procesu(PID). W przypadku systemów GNU/Linux wątki współdzielą identyfikator procesu z procesem macierzystym, który jest stworzył. Z tego powodu użycie wątków POSIX jest niepraktyczne.
+Z uwagi na to że podjęta została decyzja aby zamknąć funkcjonalność serwera oraz klienta w jednym programie przestrzeni użytkownika, który nazywać będziemy demonem, kluczowe jest rozdzielenie poszczególnych funkcji pomiędzy odrębne procesy. W przypadku normalnych programów udostępniających różnego rodzaju usługi rozsądnym pomysłem jest użycie wątków jako że zarządzanie nimi jest dość proste dzięki bibliotece wątków POSIX zwanej pthreads\footnote{\url{https://computing.llnl.gov/tutorials/pthreads/}}. Niestety specyfika naszego programu wynikająca z potrzeby komunikowania się z przestrzenią jądra za pośrednictwem gniazd Netlink sprawia że niezbędnym jest aby wątki komunikujące się z jądrem posiadały swój własny odrębny identyfikator procesu(PID). W przypadku systemów GNU/Linux wątki współdzielą identyfikator procesu z procesem macierzystym, który jest stworzył. Z tego powodu użycie wątków POSIX jest niepraktyczne.
 
 Jednak fakt że wiadomości Netlink określają swój cel oraz źródło na podstawie identyfikatorów procesów może być znacznym ułatwieniem w implementacji programu demona. Tworząc nowy proces oraz nowe gniazdo Netlink na potrzeby komunikacji z jądrem dla każdego obsługiwanego urządzenia pozbywamy się potrzeby pisania kodu, który musiał by rozróżniać pomiędzy tym, z którego urządzenia pochodzi dany komunikat. Jeżeli użyty było by tylko jeden proces i jednego gniazda Netlink rozróżnienie takie musiało by być zaimplementowane. Ponieważ wcześniej opisany nagłówek wiadomości Netlink zawiera w sobie jedynie zmienną definiującą rodzaj komunikatu o nazwie \texttt{nlmsg\_type}, który programista może użyć w implementacji własnego protokołu komunikacji, proces demona musiał by zaglądać do samego ładunku danej wiadomości w celu zweryfikowania z jakiego urządzenia ona pochodzi. Przydzielając jeden proces do jednego urządzenia tożsamość ta jest oczywista.
 
@@ -401,10 +401,10 @@ Całość rozdzielona jest na trzy foldery:
   \texttt{kernel} - Tutaj znajduje się cały kod modułu jądra oraz plik
   \texttt{Makefile} definiujący proces kompilacji tego modułu.
 \item
-  \texttt{daemon} - Posiada wszystkie pliki źródłowe składające się na program demona oraz plik \texttt{Makefile} pozwalający go zbudować.  Tutaj znajduje się również przykładowy plik \texttt{server.conf} przedstawiający sposób konfiguracji programu.
+  \texttt{daemon} - Posiada wszystkie pliki źródłowe składające się na program demona oraz plik \texttt{Makefile} pozwalający go zbudować.  Tutaj znajduje się również przykładowy plik \texttt{server\.conf} przedstawiający sposób konfiguracji programu.
 \end{itemize}
 
-Dodatkowo w głównym katalogu znajduje się plik \texttt{README.md} napisany w formacie Markdown\footnote{http://daringfireball.net/projects/markdown/} dający potencjalnym użytkownikom podstawowe informacje na temat kompilacji oraz użytkowania oprogramowania.
+Dodatkowo w głównym katalogu znajduje się plik \texttt{README\.md} napisany w formacie Markdown\footnote{http://daringfireball.net/projects/markdown/} dający potencjalnym użytkownikom podstawowe informacje na temat kompilacji oraz użytkowania oprogramowania.
 
 \subsubsection{Kod modułu jądra}
 
@@ -585,7 +585,7 @@ Każdy dobry programista wie, iż by zrozumieć czyjś kod należy zacząć od k
 
 \subsubsection{Struktura \texttt{\large{netdev\_data}}}
 
-Struktura \texttt{netdev\_data}(ang. ``Network Device Data'') przedstawia pojedyncze urządzenie obsługiwane przez moduł jądra bez względu na to czy jest to urządzenie-atrap czy rzeczywiste urządzenie.  Jest ona zdefiniowana w pliku \texttt{netdevmgm.h} i wygląda następująco:
+Struktura \texttt{netdev\_data}(ang. "Network Device Data") przedstawia pojedyncze urządzenie obsługiwane przez moduł jądra bez względu na to czy jest to urządzenie-atrap czy rzeczywiste urządzenie.  Jest ona zdefiniowana w pliku \texttt{netdevmgm.h} i wygląda następująco:
 
 \begin{verbatim}
 struct netdev_data {
@@ -623,7 +623,7 @@ Ostatnim elementem jest tablica haszująca, która będzie przechowywać referen
 
 \subsubsection{Struktura \texttt{\large{fo\_access}}}
 
-Jako że jeden plik urządzenia-atrapy może być otwarty przez wiele procesów jednocześnie sterownik netdev musi zdawać sobie sprawę z tego faktu i przechowywać niezbędne informacje w celu obsłużenia danych procesów w indywidualny sposób. Z tego powodu istnieje struktura \texttt{fo\_access}(ang. ``File Operation Access''), która reprezentuje pojedynczy dostęp do urządzenia-atrapy. Zdefiniowana jest w pliku \texttt{kernel/fo\_access.h}:
+Jako że jeden plik urządzenia-atrapy może być otwarty przez wiele procesów jednocześnie sterownik netdev musi zdawać sobie sprawę z tego faktu i przechowywać niezbędne informacje w celu obsłużenia danych procesów w indywidualny sposób. Z tego powodu istnieje struktura \texttt{fo\_access}(ang. "File Operation Access"), która reprezentuje pojedynczy dostęp do urządzenia-atrapy. Zdefiniowana jest w pliku \texttt{kernel/fo\_access.h}:
 
 \begin{verbatim}
 struct fo_access {
@@ -648,7 +648,7 @@ Na samym końcu jest obiekt typu \texttt{hlist\_node} o nazwie \texttt{hnode} po
 
 \subsubsection{Struktura \texttt{\large{fo\_req}}}
 
-Następną strukturą, która pracuje jeszcze bliżej przestrzeni użytkownika niż \texttt{fo\_access} jest struktura \texttt{fo\_req}(ang. ``File Operation Request'') i reprezentuje ona pojedynczą operację plikową wykonaną na dowolnym pliku dowolnego urządzenia-atrapy obsługiwanego przez sterownik \texttt{netdev}. Jest ona podstawą do procesu serializacji danych na potrzeby wysłania ich do procesu demona.  Przechowywana jest w kolejce FIFO w atrybucie \texttt{fo\_queue} obiektu \texttt{fo\_access} odpowiedzialnego za proces, który wywołał daną operację plikową. Istnieć będzie aż do momentu kiedy odpowiedź na daną operację dotrze do sterownika i operacja plikowa zwróci kontrolę razem z wynikiem operacji do procesu, który ją wywołał.
+Następną strukturą, która pracuje jeszcze bliżej przestrzeni użytkownika niż \texttt{fo\_access} jest struktura \texttt{fo\_req}(ang. "File Operation Request") i reprezentuje ona pojedynczą operację plikową wykonaną na dowolnym pliku dowolnego urządzenia-atrapy obsługiwanego przez sterownik \texttt{netdev}. Jest ona podstawą do procesu serializacji danych na potrzeby wysłania ich do procesu demona.  Przechowywana jest w kolejce FIFO w atrybucie \texttt{fo\_queue} obiektu \texttt{fo\_access} odpowiedzialnego za proces, który wywołał daną operację plikową. Istnieć będzie aż do momentu kiedy odpowiedź na daną operację dotrze do sterownika i operacja plikowa zwróci kontrolę razem z wynikiem operacji do procesu, który ją wywołał.
 
 Struktura ta jest zdefiniowana w następujący sposób w pliku \texttt{kernel/fo\_comm.h}:
 
@@ -712,7 +712,7 @@ Która odpowiada operacji odczytu ze struktury \texttt{file\_operations}:
 ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 \end{verbatim}
 
-Widać tutaj jasno że struktura \texttt{s\_fo\_read} przechowuje wszystkie argumenty, które muszą być przekazane do rzeczywistego urządzenia w celu otrzymania prawidłowego efektu. Posiada one również miejsce na wartość zwrotną danej funkcji w postaci atrybutu \texttt{rvalue}(ang. ``Return Value''). Tak przygotowana struktura może być skopiowana do wysyłanej wiadomości i rozpakowana przez moduł jądra po drugiej stronie w celu wykonania danej operacji z prawidłowymi argumentami.
+Widać tutaj jasno że struktura \texttt{s\_fo\_read} przechowuje wszystkie argumenty, które muszą być przekazane do rzeczywistego urządzenia w celu otrzymania prawidłowego efektu. Posiada one również miejsce na wartość zwrotną danej funkcji w postaci atrybutu \texttt{rvalue}(ang. "Return Value"). Tak przygotowana struktura może być skopiowana do wysyłanej wiadomości i rozpakowana przez moduł jądra po drugiej stronie w celu wykonania danej operacji z prawidłowymi argumentami.
 
 Warto zauważyć że struktura \texttt{s\_fo\_read} nie zawiera w sobie wskaźnika do struktury \texttt{file}. Było już powiedziane że struktura ta powstaje na rzecz pojedynczej instancji otwarcia pliku przez proces i nie ma żadnego znaczenia poza tym kontekstem. Przesyłanie jej do serwera było by bezużyteczne jako że wykonując daną operacje na rzeczywistym urządzeniu jądro stworzy własną strukturę \texttt{file}, która będzie reprezentować dana instancje otwartego pliku.
 
@@ -743,7 +743,7 @@ Podstawowe operacje dopuszczalne na tablicy to:
 \item
   \texttt{hash\_for\_each(hashtable, index, obj, member)} - Iteracja po wszystkich elementach tablicy przy pomocy licznika \texttt{index} na przy pomocy wskaźnika \texttt{obj}. Wartość \texttt{member} określa jak nazywa się atrybut \texttt{hlist\_node} w obiekcie o wskaźniku \texttt{obj}. W przypadku \texttt{netdev\_data} oraz \texttt{fo\_access} argument \texttt{member} przyjął by wartość \texttt{hnode}.
 \item
-  \texttt{hash\_for\_each\_possible(hashtable, obj, member, key)} - Iteracja po wszystkich elementach, których klucze identyfikacyjne \texttt{key} umieściły je w tych samych ``wiadrach''.
+  \texttt{hash\_for\_each\_possible(hashtable, obj, member, key)} - Iteracja po wszystkich elementach, których klucze identyfikacyjne \texttt{key} umieściły je w tych samych "wiadrach".
 \end{itemize}
 
 Niestety implementacja \texttt{hashtable} z jądra, tak jak wszystkie implementacje tablic haszujących, jest podatne na konflikty kluczy spowodowane tym samym wynikiem ich haszowania. Z tego powodu potrzebna jest iteracja po możliwych wynikach dostępnych dla klucza \texttt{key}.
@@ -772,11 +772,11 @@ Jednym z głównych utrudnień jakie napotykają programiści jądra Linux jest 
 
 Programista jądra musi zdawać sobie sprawę z zagrożenia przerwania wykonywania kodu jego modułu w absolutnie dowolnym momencie i aktywnie zapobiegać problemom z tego wynikającym. Zwłaszcza gdy sam jego moduł działa w sposób wielowątkowy i dodatkowo zwiększa złożoność kodu przez potrzebę zabezpieczania poszczególnych struktur danych przed konfliktami spowodowanymi jednoczesnym dostępem do nich. Niespójne stany danych to kolejny główny problem pisania modułów jądra.
 
-W celu ułatwienia życia programistom jądro Linux udostępnia szereg narzędzi takich jak różnego rodzaju semafory, ``muteksy''(ang. Mutex, Mutual Exclusion), spinlocki, kolejki oczekiwania czy wartości atomowe. W kolejnych trzech podrozdziałach zostaną omówione trzy z takich narzędzi, które zostały użyte w kodzie modułu \texttt{netdev}.
+W celu ułatwienia życia programistom jądro Linux udostępnia szereg narzędzi takich jak różnego rodzaju semafory, "muteksy"(ang. Mutex, Mutual Exclusion), spinlocki, kolejki oczekiwania czy wartości atomowe. W kolejnych trzech podrozdziałach zostaną omówione trzy z takich narzędzi, które zostały użyte w kodzie modułu \texttt{netdev}.
 
 \subsubsection{atomic\_t}
 
-Najprostszym ze wszystkich mechanizmów pozwalających na unikanie niespójnych stanów danych są wartości atomowe. Główne dwa typy takich wartości to \texttt{atomic\_t} o wielkości 32 bitów i \texttt{atomic64\_t} o oczywistej wielkości 64 bitów. Zdefiniowane one są w pliku \texttt{include/linux/types.h} razem z wieloma innymi podstawowymi typami danych używanymi w kodzie jądra Linux.
+Najprostszym ze wszystkich mechanizmów pozwalających na unikanie niespójnych stanów danych są wartości atomowe~\ref{refcount}. Główne dwa typy takich wartości to \texttt{atomic\_t} o wielkości 32 bitów i \texttt{atomic64\_t} o oczywistej wielkości 64 bitów. Zdefiniowane one są w pliku \texttt{include/linux/types.h} razem z wieloma innymi podstawowymi typami danych używanymi w kodzie jądra Linux.
 
 W przypadku modułu \texttt{netdev} dwukrotnie użyty został typ \texttt{atomic\_t}. Oba przykłady znajdują się w już omówionej strukturze \texttt{netdev\_data}. Są to \texttt{users} zliczająca ilość referencji do danego obiektu \texttt{netdev\_data} istniejących w danym momencie w pamięci jądra oraz \texttt{curseq}, który wyznacza numery sekwencyjne użyte w polu \texttt{nlmsgh\_seq} każdej wysłanej wiadomości Netlink. Jako że nie przewidywana jest astronomiczna ilość referencji przekraczająca ponad dwa miliardy a pole \texttt{nlmsgh\_seq} ma wielkość \texttt{\_\_u32} czyli 32 bitów nie było potrzeby używania typu \texttt{atomic64\_t}.
 
@@ -791,7 +791,7 @@ atomic_inc(v);   /* Inkrementacja.       */
 atomic_dec(v);   /* Dekrementacja.       */
 \end{verbatim}
 
-W celu uproszczenia korzystania z tych wartości stworzone zostały funkcje opakowujące w pliku \texttt{kernel/netdevmgm.c}:
+W celu uproszczenia korzystania z tych wartości stworzone zostały funkcje opakowujące w pliku \texttt{kernel/netdevmgm\.c}:
 
 \begin{itemize}
 \itemsep1pt\parskip0pt\parsep0pt
@@ -834,7 +834,7 @@ Funkcje zaczynające się od \texttt{down\_\ldots} blokują dany semafor a funkc
 
 Prawie wszystkie funkcje operujące na obiektach \texttt{netdev\_data} i \texttt{fo\_access} używają któregoś z tych typów blokowania semaforów w celu zabezpieczenia przed niespójnością danych. Dzięki użyciu semaforów odczytu/zapisu wpływ tych zabezpieczeń na wydajność modułu jest minimalny.
 
-Niestety semafory są ostrzem obusiecznym. Rozwiązując jeden problem dodają kilka nowych. Absolutnie niezbędne jest aby kod chroniony przez semafor był odporny na wszelkiego rodzaju błędy, które mogły by przerwać wykonywanie danego procesu, takie jak na przykład używanie pustych wskaźników czyli błąd ``\texttt{NULL pointer dereference}''. Gdyby coś takiego się zdarzyło i operacja \texttt{up} zwalniająca semafor nie została by wywołana zablokowało by to definitywnie wszystkie pozostałe procesy chcące się dostać do danej sekcji kodu. Pominięcie implementacji prawidłowej obsługi błędów, która gwarantuje zwolnienie semafora jest katastrofalnym błędem. Może on łatwo doprowadzić cały system do stanu nieużywalności.
+Niestety semafory są ostrzem obusiecznym. Rozwiązując jeden problem dodają kilka nowych. Absolutnie niezbędne jest aby kod chroniony przez semafor był odporny na wszelkiego rodzaju błędy, które mogły by przerwać wykonywanie danego procesu, takie jak na przykład używanie pustych wskaźników czyli błąd "\texttt{NULL pointer dereference}". Gdyby coś takiego się zdarzyło i operacja \texttt{up} zwalniająca semafor nie została by wywołana zablokowało by to definitywnie wszystkie pozostałe procesy chcące się dostać do danej sekcji kodu. Pominięcie implementacji prawidłowej obsługi błędów, która gwarantuje zwolnienie semafora jest katastrofalnym błędem. Może on łatwo doprowadzić cały system do stanu nieużywalności.
 
 Kolejnym problemem specyficznym dla semaforów jest używanie kilku semaforów jednocześnie. W przypadku gdy istnieją dwa fragmenty kodu, oba zabezpieczone jednocześnie przy pomocy dwóch semaforów, \texttt{A} oraz \texttt{B}, absolutnie kluczowe jest aby blokować jest zawsze w tej samej kolejności, czyli na przykład zawsze \texttt{A} a następnie \texttt{B}. Gdyby blokowanie semaforów było wykonywane w różnej kolejności bardzo łatwo mogło by to doprowadzić do stanu, w którym jeden wątek posiada blokadę semafora \texttt{A} gdy drugi posiada blokadę semafora \texttt{B} i żaden ni może się dostać do swojej sekcji kodu. W efekcie oba są zablokowane w nieskończoność. A dokładniej do momentu ponownego uruchomienia systemu.
 
@@ -856,7 +856,7 @@ Do podstawowej obsługi pojedynczego spinlocka w środowisku nie wywołanym prze
   \texttt{void spin\_unlock(spinlock\_t *lock);} - Do zwolnienia blokady.
 \end{itemize}
 
-W kodzie modułu \texttt{netdev} istnieje tylko jeden przypadek, który wymaga u życia tego typu mechanizmu synchronizacji z racji tego jak krótko taka blokada musiała by działać. Znajduje się on w implementacji komunikacji Netlink w pliku \texttt{kernel/netlink.c}. Spinlock przypisany do konkretnego obiektu \texttt{netdev\_data} gwarantuje kolejność wysyłanych wiadomości Netlink będzie prawidłowa. Użycie spinlocka w funkcji \texttt{netlink\_recv()} zapewnia że po odebraniu wiadomości z przestrzeni użytkownika proces zdąży wysłać potwierdzenie odebrania wiadomości zanim którykolwiek z istniejących wątków modułu \texttt{netdev} wyśle jakąś operację plikową powodując w ten sposób błąd po stronie demona oczekującego wiadomości potwierdzającej.
+W kodzie modułu \texttt{netdev} istnieje tylko jeden przypadek, który wymaga u życia tego typu mechanizmu synchronizacji z racji tego jak krótko taka blokada musiała by działać. Znajduje się on w implementacji komunikacji Netlink w pliku \texttt{kernel/netlink\.c}. Spinlock przypisany do konkretnego obiektu \texttt{netdev\_data} gwarantuje kolejność wysyłanych wiadomości Netlink będzie prawidłowa. Użycie spinlocka w funkcji \texttt{netlink\_recv()} zapewnia że po odebraniu wiadomości z przestrzeni użytkownika proces zdąży wysłać potwierdzenie odebrania wiadomości zanim którykolwiek z istniejących wątków modułu \texttt{netdev} wyśle jakąś operację plikową powodując w ten sposób błąd po stronie demona oczekującego wiadomości potwierdzającej.
 
 Spinlocki poza dużym wpływem na wydajność systemu przy nieostrożnym ich wykorzystaniu posiadają te same wady wymienione dla semaforów. Również są podatne na nieskończone blokowanie w przypadku niezwolnienia blokady oraz na wzajemne blokowanie procesów przy użyciu dwóch lub więcej spinlocków. Raczej odradza się używania tej metody synchronizacji chyba że programista jest absolutnie pewien że da ona najlepsze wyniki w danym przypadku.
 
@@ -1020,9 +1020,9 @@ Główną funkcją tego projektu jest oczywiście przesyłanie operacji plikowyc
 \subsubsection{Wysyłanie operacji}
 \label{fosend}
 
-Każda operacja plikowa wykonana na urządzeniu atrapie zaczyna swoje istnienie jako wywołanie jednej z funkcji ustawionej jako jeden z argumentów struktury \texttt{file\_operations} zdefiniowanej jako \texttt{nedev\_fops} w pliku \texttt{kenrel/fo.c}. Struktura ta jest przekazywana jako argument do \texttt{cdev\_init()} podczas inicjowania nowego urządzenia-atrapy w \texttt{ndmgm\_create\_dummy}.
+Każda operacja plikowa wykonana na urządzeniu atrapie zaczyna swoje istnienie jako wywołanie jednej z funkcji ustawionej jako jeden z argumentów struktury \texttt{file\_operations} zdefiniowanej jako \texttt{nedev\_fops} w pliku \texttt{kenrel/fo\.c}. Struktura ta jest przekazywana jako argument do \texttt{cdev\_init()} podczas inicjowania nowego urządzenia-atrapy w \texttt{ndmgm\_create\_dummy}.
 
-Wszystkie te operacje są zdefiniowane w pliku \texttt{kernel/fo\_send.c}. Oto przykład operacji \texttt{open} używanej przez każdy proces, który chce rozpocząć pracę na danym pliku urządzenia:
+Wszystkie te operacje są zdefiniowane w pliku \texttt{kernel/fo\_send\.c}. Oto przykład operacji \texttt{open} używanej przez każdy proces, który chce rozpocząć pracę na danym pliku urządzenia:
 
 \begin{verbatim}
 int ndfo_send_open(struct inode *inode, struct file *filp)
@@ -1068,7 +1068,7 @@ Warto zaznaczyć że wskaźnik \texttt{current} jest specyficznym obiektem w ją
 
 Po stworzeniu obiektu \texttt{fo\_access} wskaźnik do niej jest zapisywany w specjalnym atrybucie struktury \texttt{file} o nazwie \texttt{private\_data} przeznaczonym na własny użytek przez sterowniki urządzeń. Dzięki temu gdy ten sam proces będzie wywoływał kolejne operacje plikowe nie będzie trzeba za każdym razem wyszukiwać wskaźnika do \texttt{netdev\_data} przy pomocy \texttt{ndmgm\_find()} co znacznie przyspieszy ich obsługiwanie.
 
-Ostatnim krokiem jest wysłanie żądania przy pomocy funkcji \texttt{fo\_send()} z pliku \texttt{kernel/fo\_comm.c}:
+Ostatnim krokiem jest wysłanie żądania przy pomocy funkcji \texttt{fo\_send()} z pliku \texttt{kernel/fo\_comm\.c}:
 
 \begin{verbatim}
 int fo_send(short msgtype, struct fo_access *acc, void *args,
@@ -1103,7 +1103,7 @@ Po czym przygotowuje dane żądanie do wysłania przez jego serializacje do bufo
 buffer = fo_serialize(req, &bufflen);
 \end{verbatim}
 
-Ostatecznie zdobywa nowy numer sekwencyjny dla danej wiadomości z żądaniem i wysyła je przy pomocy funkcji opakowującej \texttt{neltink\_send()} z pliku \texttt{kernele/netlink.c}:
+Ostatecznie zdobywa nowy numer sekwencyjny dla danej wiadomości z żądaniem i wysyła je przy pomocy funkcji opakowującej \texttt{neltink\_send()} z pliku \texttt{kernel/netlink\.c}:
 
 \begin{verbatim}
 req->seq = ndmgm_incseq(acc->nddata);
@@ -1229,13 +1229,13 @@ skbtmp = netlink_pack_skb(nlh, buff, bufflen);
 netlink_send_skb(acc->nddata, skb);
 \end{verbatim}
 
-Tutaj kluczową strukturą jest \texttt{netdev\_recv\_fops} zdefiniowana z pliku \texttt{kernel/fo\_comm.c}. Jest to tablica wskaźników do funkcji wykonujących żądania operacji plikowych na rzeczywistym urządzeniu. Jej deklaracja wygląda następująco:
+Tutaj kluczową strukturą jest \texttt{netdev\_recv\_fops} zdefiniowana z pliku \texttt{kernel/fo\_comm\.c}. Jest to tablica wskaźników do funkcji wykonujących żądania operacji plikowych na rzeczywistym urządzeniu. Jej deklaracja wygląda następująco:
 
 \begin{verbatim}
 int (*netdev_recv_fops[])(struct fo_access *, struct fo_req*);
 \end{verbatim}
 
-Jest ona wypełniona w odpowiedniej kolejności zbiorem funkcji z rodziny \texttt{ndfo\_recv\_...} lub wartościami \texttt{NULL} w przypadku operacji, które nie są zaimplementowane. Kolejność ta jest bezpośrednio zależna od numerów jakie zostały przydzielone operacjom plikowym w pliku \texttt{include/protocol.h}. Na przykład operacja \texttt{open()} zdefiniowana jest przez stałą \texttt{MSGT\_FO\_OPEN} jako \texttt{111}.  Dzięki takiemu układowi możliwe jest uniknięcie budowania ogromnej instrukcji wybory \texttt{switch} poprzez odjęcie od typu wiadomości \texttt{nlh-\textgreater{}nlmsg\_type} wartości \texttt{MSGT\_FO\_START}(równej \texttt{100}) zwiększonej o jeden i otrzymanie indeksu tablicy operacji. Indeks ten będzie wskazywał na operację, którą dane żądanie chce wykonać na rzeczywistym urządzeniu.
+Jest ona wypełniona w odpowiedniej kolejności zbiorem funkcji z rodziny \texttt{ndfo\_recv\_\ldots} lub wartościami \texttt{NULL} w przypadku operacji, które nie są zaimplementowane. Kolejność ta jest bezpośrednio zależna od numerów jakie zostały przydzielone operacjom plikowym w pliku \texttt{include/protocol.h}. Na przykład operacja \texttt{open()} zdefiniowana jest przez stałą \texttt{MSGT\_FO\_OPEN} jako \texttt{111}.  Dzięki takiemu układowi możliwe jest uniknięcie budowania ogromnej instrukcji wybory \texttt{switch} poprzez odjęcie od typu wiadomości \texttt{nlh-\textgreater{}nlmsg\_type} wartości \texttt{MSGT\_FO\_START}(równej \texttt{100}) zwiększonej o jeden i otrzymanie indeksu tablicy operacji. Indeks ten będzie wskazywał na operację, którą dane żądanie chce wykonać na rzeczywistym urządzeniu.
 
 Używanie tablic wskaźników do funkcji jest rzadko używanym i często pomijanym rozwiązaniem przez wielu programistów. Tutaj upraszcza ono kod i zwiększa wydajność wyszukiwania prawidłowej operacji plikowej.
 
@@ -1322,7 +1322,7 @@ Ponieważ proces nasłuchujący musi tworzyć nowe procesy pośredniczące klucz
 signal(SIGCHLD, parent_sig_chld);
 \end{verbatim}
 
-Jej jedyna rola to wywoływanie \texttt{waitpid()} w celu uniknięcia zaśmiecania systemu procesami zablokowanymi w stanie ``zombi'':
+Jej jedyna rola to wywoływanie \texttt{waitpid()} w celu uniknięcia zaśmiecania systemu procesami zablokowanymi w stanie "zombi":
 
 \begin{verbatim}
 void parent_sig_chld(int signo) {
@@ -1418,7 +1418,7 @@ Głównym powodem implementacji tego projektu było udostępnianie urządzeń zn
 
 \subsection{Porównanie prędkości transmisji danych}
 
-Testy prędkości transmisji danych zostały wykonane przy pomocy narzędzia \texttt{dd}\footnote{Część podstawowego pakietu narzędzi systemowych GNU Coreutils. \url{https://www.gnu.org/software/coreutils/}}, które jest prosty narzędziem do kopiowania danych z jednego pliku do drugiego i liczy czas oraz prędkość operacji. Pozwala również podawać jako argumenty ustawienia ułatwiające testowanie:
+Testy prędkości transmisji danych zostały wykonane przy pomocy programu \texttt{dd}\footnote{Część podstawowego pakietu narzędzi systemowych GNU Coreutils. \url{https://www.gnu.org/software/coreutils/}}, które jest prostym narzędziem do kopiowania danych z jednego pliku do drugiego i liczy czas oraz prędkość operacji. Pozwala również podawać szereg argumentów ułatwiających testowanie wydajności:
 
 \begin{itemize}
     \item \texttt{bs} - Przyjmuje wielkość bufora odczytu lub zapisu w bajtach lub innych jednostkach.
@@ -1426,16 +1426,18 @@ Testy prędkości transmisji danych zostały wykonane przy pomocy narzędzia \te
     \item \texttt{conv} - Dodatkowe opcje kopiowania.
 \end{itemize}
 
-W celu zapewnienie poprawnego wyniku użyta została opcja \texttt{conv=fdatasync} by zapewnić że wszystkie operacje zapisu lub odczytu się zakończą zanim program \texttt{dd} zwróci kontrolę i poda czas oraz prędkość transmisji. Przy użyciu argumentu \texttt{bs} przetestowany został wpływ wielkości bufora na wydajność zapisywania lub odczytywania danych do urządzeń znakowych. Argument \texttt{count} pozwolił określić ilość danych jakie miały być przesłane w trakcie jednego testu. Przykładowy test sprawdzający przepustowość zapisu danych z urządzenia \texttt{/dev/zero} do urządzenia-atrapy \texttt{/dev/netdev_null} 128 Megabajtów przy uzyciu buforów o wielkości 128 Kilobajtów wyglądał by następująco:
+W celu zapewnienie poprawnego wyniku użyta została opcja \texttt{conv=fdatasync} by zapewnić że wszystkie operacje zapisu lub odczytu się zakończą zanim program \texttt{dd} zwróci kontrolę i poda czas oraz prędkość transmisji. Przy użyciu argumentu \texttt{bs} przetestowany został wpływ wielkości bufora na wydajność zapisywania lub odczytywania danych do urządzeń znakowych. Argument \texttt{count} pozwolił określić ilość danych jakie miały być przesłane w trakcie jednego testu. Przykładowy test sprawdzający przepustowość zapisu 128 Megabajtów danych z urządzenia \texttt{/dev/zero} do urządzenia-atrapy \texttt{/dev/netdev\_null} przy użyciu buforów o wielkości 128 Kilobajtów wyglądał by następująco:
 
 \begin{verbatim}
-dd if=/dev/zero of=/dev/netdev_null bs=128KB count=1000 conv=fdatasync
+$ dd if=/dev/zero of=/dev/netdev_null bs=128KB count=1000 conv=fdatasync
 1000+0 records in
 1000+0 records out
 128000000 bytes (128 MB) copied, 6.0643427 s, 21.1 MB/s
 \end{verbatim}
 
-W celu zweryfikowania maksymalnej prędkości transmisji danych jaką udostępnia oprogramowanie \texttt{netdev} niezbędne jest użycia znakowego, które nie ma odgraniczeń jeżeli chodzi o generowanie danych oraz cel
+W celu zweryfikowania maksymalnej prędkości transmisji danych jaką udostępnia oprogramowanie \texttt{netdev} niezbędne jest użycie urządzenia znakowego, które nie ma odgraniczeń jeżeli chodzi o prędkość generowania danych. Urządzeniem takim jest \texttt{/dev/zero}, które należy do modułu \texttt{mem} i dostarcza nieskończone ilości wyzerowanych buforów. Jego prędkość generowania danych jest ograniczona jedynie tym jak szybko dany system jest w stanie alokować nowe wyzerowane strony pamięci co praktycznie zawsze zajmuje ułamki sekund. Natomiast docelowe urządzenie nie może wpływać na wyniki pomiaru przez wolne odbieranie danych. Z tego powodu użyte zostało urządzenie \texttt{/dev/null}, które porzuca, a dokładniej ignoruje wszystkie bufory przekazywane do niego podczas wykonywania operacji plikowych. Gwarantuje to że nie wpłynie ono na otrzymane wyniki.
+
+Prędkość kopiowania danych z urządzenia \texttt{/dev/zero} do \texttt{/dev/null} na w środowisku lokalnym przy użyciu narzędzia \texttt{dd} wacha się pomiędzy 1 GB/s a 10 GB/s w zależności od obciążenia systemu w danym momencie ale nawet najwolniejsze przypadki są szybsze niż sieć lokalna wykorzystana w testach oprogramowania \texttt{netdev}.
 
 \begin{figure}[H]
     \caption{Przepustowość odczytu z /dev/netdev\_zero do /dev/null}
@@ -1466,8 +1468,6 @@ Test
 
 \section{Podsumowanie}
 \section{Dodatki}
-
-\subsection{Zawartość CD}
 
 \begin{itemize}
 \itemsep1pt\parskip0pt\parsep0pt
@@ -1509,17 +1509,17 @@ Test
 
 \bibitem{ldd}
     \textit{Linux Device Drivers},
-    Jonathan Corbet, Alessandro Rubini, Greg Kroah-Hartman
+    Jonathan Corbet, Alessandro Rubini, Greg Kroah-Hartman,
     3rd Edition,
 
 \bibitem{undlinuxkernel}
     \textit{Understanding Linux Kernel},
-    Daniel P. Bovet, Marco Cesati
+    Daniel P. Bovet, Marco Cesati,
     3rd Edtion.
 
 \bibitem{unixnetworkprog}
     \textit{Programowanie zastosowań sieciowych w systemie UNIX},
-    Richard Stevens.
+    Richard Stevens,
     Tom 1.
 
 \bibitem{refcount}
