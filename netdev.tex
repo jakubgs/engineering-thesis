@@ -40,19 +40,19 @@ Projekt ten ilustruje wiele kluczowych modeli oraz standardów zdefiniowanych pr
 
 Sterownik jądra ma na celu stworzenie urządzenia-atrapy które będzie udawać w systemie rzeczywiste urządzenia fizyczne. Program serwerowy ma na celu odbieranie jakichkolwiek operacji wykonywanych na danym urządzeniu-atrapie i przekazanie ich do kolejnej instancji programu na zdalnej maszynie, na której znajduje się rzeczywiste urządzenie, które może odpowiedzieć na zapytania in przesłać wyniki z powrotem do urządzeniu-atrapy.
 
-Z powodu różnorodności funkcji jakie będzie wykonywał program z przestrzeni użytkownika oraz według tradycji systemów z rodziny Unix program ten będzie od teraz nazywany demonem. Dokładny podział funkcji jakie będzie wypełniał zostanie opisany w rozdziale \ref{Sposób implementacji programu demona}.
+Z powodu różnorodności funkcji jakie będzie wykonywał program z przestrzeni użytkownika oraz według tradycji systemów z rodziny Unix program ten będzie od teraz nazywany demonem. Dokładny podział funkcji jakie będzie wypełniał zostanie opisany w rozdziale~\ref{Sposób implementacji programu demona}.
 
 \subsection{Język programistyczny}
 \label{language}
 
-Z uwagi na to, iż większość kodu znajduje się w module jądra Linux głównym i jedynym językiem implementacji projektu jest język C obsługiwany przez kompilator GCC. Standard GCC wprowadził dużą liczbę rozszerzeń i usprawnień do podstawowego standardu ANSI C również znanego jako C89. Pisanie kodu jądra systemu wymaga dużej kontroli nad wyjątkowo specyficznymi szczegółami implementacji. Z uwagi na to Linus Torvalds podjął świadomą decyzje aby przywiązać implementacje Linuxa do jednego kompilatora - GCC - uzyskując w ten sposób liczbę dodatkowych funkcjonalności\cite{gccextensions} oraz wyższy poziom kontroli na kodem.
+Z uwagi na to, iż większość kodu znajduje się w module jądra Linux głównym i jedynym językiem implementacji projektu jest język C obsługiwany przez kompilator GCC\@. Standard GCC wprowadził dużą liczbę rozszerzeń i usprawnień do podstawowego standardu ANSI C również znanego jako C89. Pisanie kodu jądra systemu wymaga dużej kontroli nad wyjątkowo specyficznymi szczegółami implementacji. Z uwagi na to Linus Torvalds podjął świadomą decyzje aby przywiązać implementacje Linuxa do jednego kompilatora - GCC - uzyskując w ten sposób liczbę dodatkowych funkcjonalności\cite{gccextensions} oraz wyższy poziom kontroli na kodem.
 
 Kod jadra nie jest jednak napisany w czystym C. Wiele kluczowych elementów jądra, zwłaszcza te które są zależne od platformy, czyli zazwyczaj używanego procesora, jest napisanych w asemblerze. Asembler jest interpretowany przez GCC i zapisywany przy pomocy wywołania \texttt{asm}\cite{asm}.
 
 \subsection{Biblioteki}
 \label{libraries}
 
-Wszystkie wywołania systemowe użyte w projekcie są częścią standardu POSIX. Implementacja komunikacji sieciowej jak i komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika korzysta ze standardowych bibliotek C środowiska operacyjnego GNU czyli GLIBC\footnote{https://www.gnu.org/software/libc/}. Żadne dodatkowe biblioteki nie zostały wykorzystane przy rozwoju tego projektu.  Wszystkie niezbędne struktury danych takie jak tablice haszujące czy kolejki FIFO(First In, First Out) mają swoje ogólne implementacje dostępne bezpośrednio w nagłówkach jądra Linux. Do implementacji programu demona, zostały wykorzystane podstawowe funkcje interfejsu gniazd BSD dostępne w systemie Linux czyli \texttt{sendmsg}, \texttt{recvmsg} oraz \texttt{select}. Serializacja danych danych oraz implementacja protokołu komunikacji zostały zaimplementowane własnoręcznie bez użycia dodatkowych bibliotek.
+Wszystkie wywołania systemowe użyte w projekcie są częścią standardu POSIX\@. Implementacja komunikacji sieciowej jak i komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika korzysta ze standardowych bibliotek C środowiska operacyjnego GNU czyli GLIBC\footnote{https://www.gnu.org/software/libc/}. Żadne dodatkowe biblioteki nie zostały wykorzystane przy rozwoju tego projektu.  Wszystkie niezbędne struktury danych takie jak tablice haszujące czy kolejki FIFO(First In, First Out) mają swoje ogólne implementacje dostępne bezpośrednio w nagłówkach jądra Linux. Do implementacji programu demona, zostały wykorzystane podstawowe funkcje interfejsu gniazd BSD dostępne w systemie Linux czyli \texttt{sendmsg}, \texttt{recvmsg} oraz \texttt{select}. Serializacja danych danych oraz implementacja protokołu komunikacji zostały zaimplementowane własnoręcznie bez użycia dodatkowych bibliotek.
 
 \subsection{Interfejs}
 
@@ -90,7 +90,7 @@ Istnieje siedem podstawowych typów plików:
 \item
   Pliki potoków - Jeden z dostępnych metod komunikacji międzyprocesowej.  Istnieją nazwane i nienazwane potoki. Nazwane potoki są widoczne w systemie plików jako pliki, nienazwane nie są, nadal jednak tworzony jest dla nich deskryptor pliku w systemie.
 \item
-  Pliki gniazd - Gniazda BSD zazwyczaj tworzone w celu komunikacji sieciowej przy pomocy protokołów TCP lub UDP. Pozwalają również na komunikację między procesową.
+  Pliki gniazd - Gniazda BSD zazwyczaj tworzone w celu komunikacji sieciowej przy pomocy protokołów TCP lub UDP\. Pozwalają również na komunikację między procesową.
 \end{itemize}
 
 Na wszystkich tych plikach można wykonywać ten sam zestaw operacji, które zostaną dokładnie opisane w rozdziale \nameref{vfs}. W celu stworzenia modułu jądra, który tworzy specyficzny rodzaj pliku, na przykład plik blokowy, i obsługuje wykonane na nim operacji musi on implementować te operacje.
@@ -100,7 +100,7 @@ Jako że ten projekt obsługiwać będzie urządzenia znakowe reszta pracy skupi
 \subsection{Model VFS}
 \label{vfs}
 
-Wirtualny system plików znany przede wszystkim pod skrótem VFS(Virtual File System) to warstwa abstrakcji wprowadzona w jądrze Linux mająca na celu ujednolicenie interfejsów, przez które przestrzeń jądra oraz przestrzeń użytkownika mają dostęp do różnego rodzaju systemów plików. W dzisiejszych czasach istnieje ogromne bogactwo wszelkiego rodzaju systemów plików, od dość uniwersalnych, takich jak rodzina Ext(2,3 i 4) po stronie GNU/Linux czy FAT32 oraz NTFS po stronie produktów Microsoft, przez przystosowane do konkretnych zastosowań takich jak ZFS, BTRFS, UFS czy JFS, sieciowe systemy plików jak NFS, SMBFS i CIFS, po wirtualne systemy plików takie jak \texttt{procfs}, \texttt{devfs}, \texttt{sysfs} czy \texttt{tmpfs}. Absurdem było by implementowanie oddzielnych narzędzi do współpracy ze wszystkimi tymi systemami. W celu unifikacji sposobu implementowania dostępu oraz kontroli wszelkiego rodzaju systemów plików stworzony został model wirtualnego systemu plików VFS. W jądrze Linux jest to prawdopodobnie system, który najbardziej czerpie z filozofii programowania obiektowego, pomimo tego iż jest ono prawie w 100\% napisane w czystym języku C które nie posiada mechanizmów obiektowości takich jak dziedziczenie czy operacje na obiektach znanych z takich języków jak C++ czy Java.
+Wirtualny system plików znany przede wszystkim pod skrótem VFS(Virtual File System) to warstwa abstrakcji wprowadzona w jądrze Linux mająca na celu ujednolicenie interfejsów, przez które przestrzeń jądra oraz przestrzeń użytkownika mają dostęp do różnego rodzaju systemów plików. W dzisiejszych czasach istnieje ogromne bogactwo wszelkiego rodzaju systemów plików, od dość uniwersalnych, takich jak rodzina Ext(2,3 i 4) po stronie GNU/Linux czy FAT32 oraz NTFS po stronie produktów Microsoft, przez przystosowane do konkretnych zastosowań takich jak ZFS, BTRFS, UFS czy JFS, sieciowe systemy plików jak NFS, SMBFS i CIFS, po wirtualne systemy plików takie jak \texttt{procfs}, \texttt{devfs}, \texttt{sysfs} czy \texttt{tmpfs}. Absurdem było by implementowanie oddzielnych narzędzi do współpracy ze wszystkimi tymi systemami. W celu unifikacji sposobu implementowania dostępu oraz kontroli wszelkiego rodzaju systemów plików stworzony został model wirtualnego systemu plików VFS\. W jądrze Linux jest to prawdopodobnie system, który najbardziej czerpie z filozofii programowania obiektowego, pomimo tego iż jest ono prawie w 100\% napisane w czystym języku C które nie posiada mechanizmów obiektowości takich jak dziedziczenie czy operacje na obiektach znanych z takich języków jak C++ czy Java.
 
 Dzięki wprowadzeniu tego modelu wszystkie sterowniki poszczególnych systemów plików muszą implementować konkretny zestaw struktur oraz funkcji, które w sposób zupełnie przezroczysty pozwalają wszystkim pozostałym elementom systemu na korzystanie z zasobów znajdujących się w tych systemach plików bez zastanawiania się na różnicami pomiędzy poszczególnymi implementacjami, formatem danych czy rodzajem nośnika na którym przechowywane są owe dane. Bez względu na to jak rzeczywiście działa dany system plików, musi on przedstawiać swoje dane przy użyciu czterech podstawowych obiektów zdefiniowanych przez model VFS:
 
@@ -243,7 +243,7 @@ Struktura ta nie jest jednak tworzona i wypełniana przez programistę.  Jądro 
 
 Funkcje te są zdeklarowane w pliku \texttt{include/linux/cdev.h} oraz zdefiniowane w pliku \texttt{fs/char\_dev.c}. Poza wywołaniem funkcji \texttt{cdev\_alloc()}, \texttt{cdev\_init()} oraz \texttt{cdev\_add()} w odpowiedniej kolejności sterownik nie musi w żaden sposób operować na strukturze \texttt{cdev} aż do momentu, w którym gotowy jest usunąć urządzenie i wywołuje \texttt{cdev\_del()}. Poza tym struktura \texttt{cdev} pozostaje dostępna raczej jako repozytorium informacji o urządzeniu raczej niż aktywnie modyfikowany obiekt w trakcie działania urządzenia.
 
-W celu przechowywania dokładniejszych danych o naszym urządzeniu sterownik będzie musiał stworzyć własną wewnętrzną strukturę reprezentującą urządzenie. Zostanie to opisane w rozdziale \ref{mainstructs}.
+W celu przechowywania dokładniejszych danych o naszym urządzeniu sterownik będzie musiał stworzyć własną wewnętrzną strukturę reprezentującą urządzenie. Zostanie to opisane w rozdziale "\nameref{mainstructs}".
 
 \subsection{Model oprogramowania}
 \label{softmodel}
@@ -276,7 +276,7 @@ Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy.
                         Urządzenie-atrapa
 \end{verbatim}
 
-Przyjmując taki model organizacji rozszerza projekt o dodatkową warstwę komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika co w wyraźny sposób komplikuje proces komunikacji pomiędzy urządzeniem-atrapą a rzeczywistym fizycznym urządzeniem. Jest to jednak utrudnienie niezbędne biorąc pod uwagę polisy jakie rządzą rozwojem kodu jądra Linux. Jako że chcemy udostępniać urządzenia fizyczne za pośrednictwem tego oprogramowania kluczowa jest wysoka przepustowość w przesyłaniu dużych ilości danych i niezawodność, która zapewni że żadna operacja na pliku nie zostanie pominięta podczas przesyłania. Dokładny opis wyboru metody komunikacji znajduje się w rozdziale ``\hyperref[komunikacja-z-przestrzenią-użytkownika]{Komunikacja z przestrzenią użytkownika}''.
+Przyjmując taki model organizacji rozszerza projekt o dodatkową warstwę komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika co w wyraźny sposób komplikuje proces komunikacji pomiędzy urządzeniem-atrapą a rzeczywistym fizycznym urządzeniem. Jest to jednak utrudnienie niezbędne biorąc pod uwagę polisy jakie rządzą rozwojem kodu jądra Linux. Jako że chcemy udostępniać urządzenia fizyczne za pośrednictwem tego oprogramowania kluczowa jest wysoka przepustowość w przesyłaniu dużych ilości danych i niezawodność, która zapewni że żadna operacja na pliku nie zostanie pominięta podczas przesyłania. Dokładny opis wyboru metody komunikacji znajduje się w rozdziale "\nameref{userlandcomm}".
 
 Dodatkowo w celu zmniejszenia nakładu pracy kosztem małego zwiększenia złożoności kodu podjęta została decyzja aby zaimplementować jeden moduł jądra, który będzie odpowiedzialny za urządzenie atrapę po stronie klienta oraz rzeczywiste urządzenie po stronie serwera i jeden program przestrzeni użytkownika, który analogicznie będzie wypełniał rolę serwera oraz klienta jednocześnie. Powinno to znacznie zmniejszyć ilość linijek kodu niezbędnych do ukończenia tego projektu. Powinno to również uprości konfiguracje dla potencjalnych użytkowników z uwagi na prosty podział oprogramowania na moduł jądra oraz demona.
 
@@ -304,7 +304,7 @@ Ponieważ tworzenie tworzenie nowych urządzeń-atrap oraz wybieranie zdalnej ma
 
 Interfejsy udostępnione przez jądro można podzielić na trzy podstawowe kategorie. Z czego pierwsza jest tak kluczowa, iż jest ona podstawą dla wszystkich pozostałych. Najbardziej pierwotnym i podstawowym sposobem komunikacji z jądrem są wywołania systemowe. System Linux implementuje ich w obecnej chwili 244 plus 16 zależnych od architektury i liczba ta nie zmienia się często z uwagi na to, iż większość wywołań systemowych było zaprojektowanych zmyślą o wypełnianiu wielu ról jednocześnie.  Większość programistów jądra stroni od dodawania nowych wywołań z uwagi na to, iż dotychczas istniejące so prawie w każdym przypadku wystarczające do każdego możliwego zastosowania oraz ponieważ raz dodane wywołanie otrzymuje swój numer identyfikacyjny który musi być umieszczonych w dwóch kluczowych plikach: \texttt{arch/sh/kernel/syscalls\_32.S} oraz \texttt{include/uapi/asm-generic/unistd.h}, i raz tam dodany nie może być usunięty. Numer ten na zawsze odpowiada temu wywołaniu i gdyby przestał być implementowany musi pozostać wśród definicji i zwracać odpowiedni kod błędu w przypadku jego użycia. Prawdą jest że żadna inna forma komunikacji z jądrem nie jest tak szybka, co sprawia, iż jest to kuszące rozwiązanie, jednak z uwagi na wymienione zastrzeżenia tworzenie własnych wywołań systemowych i tym jak niskopoziomowa byłą by taka zmiana w jądrze jest prawie zawsze złym pomysłem i powinno być używane w absolutnej ostateczności.
 
-Pozostałe dwie kategorie to wirtualne systemy plików takie jak \texttt{/proc} i \texttt{/sys} oraz standardowe gniazda BSD. Wszystkie korzystają z już omówionych wywołań systemowych i implementują istniejące modele używane do komunikacji z plikami na dyskach oraz z gniazdami sieciowymi. W przypadku systemu plików \texttt{/proc} dane pobierane są z plików w postaci czytelnej dla człowieka ale mało praktycznej dla programu, który musi przeprowadzić analizę składniową danych w celu otrzymania jakichkolwiek informacji. To samo tyczy się wysyłania danych do jądra przez pliki znajdujące się w systemie \texttt{/proc}. Dodatkowo transfer danych jest ograniczony do jednej strony pamięci oraz nie udostępnia żadnego mechanizmu do informowania programu o zdarzeniach w jądrze. Wielkość strony pamięci w jądrze jest definiowana przy pomocy makra \texttt{PAGE\_SIZE} i zazwyczaj wynosi 8192 bajtów co będzie raczej niewystarczające w przypadku przesyłania większych ilości danych. Oryginalnie system \texttt{procfs} miał być używany jedynie w celu przekazywania informacji na temat istniejących procesów, niestety w obecnej chwili jest on nadużywany do wielu innych zdań i przez cały czas trwają pracę nad przeniesieniem całej funkcjonalności do systemu plików \texttt{/sys} który udostępnia kilka usprawnienie w stosunku do jego poprzednika.
+Pozostałe dwie kategorie to wirtualne systemy plików takie jak \texttt{/proc} i \texttt{/sys} oraz standardowe gniazda BSD\@. Wszystkie korzystają z już omówionych wywołań systemowych i implementują istniejące modele używane do komunikacji z plikami na dyskach oraz z gniazdami sieciowymi. W przypadku systemu plików \texttt{/proc} dane pobierane są z plików w postaci czytelnej dla człowieka ale mało praktycznej dla programu, który musi przeprowadzić analizę składniową danych w celu otrzymania jakichkolwiek informacji. To samo tyczy się wysyłania danych do jądra przez pliki znajdujące się w systemie \texttt{/proc}. Dodatkowo transfer danych jest ograniczony do jednej strony pamięci oraz nie udostępnia żadnego mechanizmu do informowania programu o zdarzeniach w jądrze. Wielkość strony pamięci w jądrze jest definiowana przy pomocy makra \texttt{PAGE\_SIZE} i zazwyczaj wynosi 8192 bajtów co będzie raczej niewystarczające w przypadku przesyłania większych ilości danych. Oryginalnie system \texttt{procfs} miał być używany jedynie w celu przekazywania informacji na temat istniejących procesów, niestety w obecnej chwili jest on nadużywany do wielu innych zdań i przez cały czas trwają pracę nad przeniesieniem całej funkcjonalności do systemu plików \texttt{/sys} który udostępnia kilka usprawnienie w stosunku do jego poprzednika.
 
 Wirtualny system plików znajdujący się w katalogu \texttt{/sys} znany również jako \texttt{sysfs} ma znacznie bardziej logiczną strukturę która pozwala na eksportowanie obiektów z przestrzeni jądra jako katalogów, ich atrybutów jako plików oraz relacji z innymi obiektami jako dowiązań symbolicznych. Posiada on również sygnalizację o wydarzeniach zaimplementowaną przy pomocy gniazd Netlink, o których będzie mowa w następnym paragrafie. Niestety system \texttt{sysfs} nadal ogranicza transfer danych do jednej strony pamięci oraz format danych potrafi zmieniać się pomiędzy wersjami jądra więc nie jest to stabilny sposób przekazywania informacji do oraz z przestrzeni użytkownika.
 
@@ -328,11 +328,11 @@ struct nlmsghdr {
 
 Struktura ta pozwala na łatwą organizacje własnego protokołu komunikacji przy użyciu indywidualnych wiadomości o konkretnym rodzaju, numerze identyfikacyjnym, adresie źródłowym oraz zestawie flag które pozwalają na rozdzielanie dużych wiadomości na części lub żądanie o wiadomości potwierdzające fakt odebrania przekazu po drugiej stronie pary gniazd.
 
-Dodatkowo pokrewieństwo gniazd Netlink z gniazdami TCP/IP jest kolejnym ułatwienie pozwalającym na łatwe przekazywanie komunikatów odebranych z jednego rodzaju gniazda do drugiego. Powinno to znacznie uprościć implementacje procesu demona odpowiedzialnego za przekazywanie wszystkich operacji plikowych wywołanych w module jądra do zdalnej maszyny posiadającej fizyczny egzemplarz udostępnianego urządzenia. Jest to idealne rozwiązanie na potrzeby tego projektu.
+Dodatkowo pokrewieństwo gniazd Netlink z gniazdami TCP/IP\@ jest kolejnym ułatwienie pozwalającym na łatwe przekazywanie komunikatów odebranych z jednego rodzaju gniazda do drugiego. Powinno to znacznie uprościć implementacje procesu demona odpowiedzialnego za przekazywanie wszystkich operacji plikowych wywołanych w module jądra do zdalnej maszyny posiadającej fizyczny egzemplarz udostępnianego urządzenia. Jest to idealne rozwiązanie na potrzeby tego projektu.
 
 \subsubsection{Komunikacja ze zdalną maszyną}
 
-Istnieją dwa podstawowe typy protokołów internetowych: TCP oraz UDP. Oba spełniają kluczowe role i oba mają swoje wady. Wybranie odpowiedniego protokołu na potrzeby tego projektu będzie miało bezpośredni wpływ na niezawodność i wydajność oprogramowania.
+Istnieją dwa podstawowe typy protokołów internetowych: TCP oraz UDP\. Oba spełniają kluczowe role i oba mają swoje wady. Wybranie odpowiedniego protokołu na potrzeby tego projektu będzie miało bezpośredni wpływ na niezawodność i wydajność oprogramowania.
 
 TCP to akronim z języka angielskiego: ``Transmission Control Protocol'', i jest protokołem połączeniowym, co oznacza, iż obie strony połączenia utrzymują aktywne sesje tak długo jak trwa połączenia które zapewniają między innymi dostarczenie wysłanych wiadomości i ponowne ich przesyłanie w razie problemów z połączeniem oraz otrzymanie ich w poprawnej kolejności. TCP gwarantuje że dane wysłane przez jedną stronę połączenia dotrą w całości i w poprawnej kolejności albo nie dotrą w ogóle co zazwyczaj spowoduje utratę połączenia i zakończenie sesji. Dodatkowo lub może przede wszystkim TCP pozwala na kontrole szybkości przesyłania danych poprzez modyfikowanie wielkości tak zwanego ``okna''. TCP na bieżąco kontroluje jak szybko druga strona jest w stanie odbierać dane, które są przesyłane i modyfikuje wielkość ``okna'' w celu dopasowania szybkości wysyłania danych do szybkości z jaką drugi koniec połączenie jest w stanie jest odbierać.
 
@@ -342,7 +342,7 @@ Niestety protokół TCP w celu utrzymania swojego standardu niezawodności dodaj
 
 Między innymi z tego powodu powstał protokół UDP, z angielskiego ``User Datagram Protocol''. W przeciwieństwie do TCP nie gwarantuje on praktycznie niczego programiście poza tym że będzie szybki. Nie posiada on żadnej kontroli przepływu danych, poprawności danych, sprawdzania kolejności w jakiej dane się pojawiają u odbiorcy czy metody potwierdzenia odbioru. W skrócie UDP jest protokołem bezpołączeniowym. Daje to jednak szereg zalet, które są kluczowe dla aplikacji mających do czynienia z danymi, które bardzo szybko tracą ważność. Wiele usług przesyłających obraz wideo lub komunikacje głosową korzysta z UDP z tego właśnie powodu. Aplikacje pozwalające na prowadzenie telekonferencji znacznie bardziej traciły by na używalności gdyby wszystkie dane docierały z prawie sekundowym opóźnieniem niż gdyby pare klatek na minutę zostało upuszczonych w trakcie przesyłania.
 
-Problem z UDP polega na tym, iż sama aplikacja jest teraz odpowiedzialna za obsługiwanie otrzymanych danych w poprawnej kolejności lub weryfikowanie czy przesłane dane nie są uszkodzone. Bardzo często robienie tego jest bardziej kosztowne niż było by po prostu użycie bardziej bezpiecznego protokołu TCP. Dodatkowo brak kontroli szybkości przepływu danych może łatwo spowodować przesycenie przepustowości sieci, z której korzysta aplikacja i doprowadzenie jej do stanu, w którym jest nieużywalna.
+Problem z UDP polega na tym, iż sama aplikacja jest teraz odpowiedzialna za obsługiwanie otrzymanych danych w poprawnej kolejności lub weryfikowanie czy przesłane dane nie są uszkodzone. Bardzo często robienie tego jest bardziej kosztowne niż było by po prostu użycie bardziej bezpiecznego protokołu TCP\. Dodatkowo brak kontroli szybkości przepływu danych może łatwo spowodować przesycenie przepustowości sieci, z której korzysta aplikacja i doprowadzenie jej do stanu, w którym jest nieużywalna.
 
 Pomimo tego że UDP jest powszechnie używane w wielu protokołach kluczowych dla działania sieci lokalnych oraz całego internetu takich jak DNS, DHCP, SNMP czy wiele protokołów dynamicznego routingu to wielu programistów odradza używania UDP w aplikacjach użytkowych. Istnieje tylko kilka konkretnych przykładów, w których szybkość komunikacji jest tak kluczowa, iż UDP jest naprawdę jedynym sensownym wyjściem. Głównym zastosowaniem jest komunikacja wideo oraz audio między ludźmi w czasie rzeczywistym. W większości innych przypadków UDP powoduje więcej problemów niż rozwiązuje.
 
@@ -400,7 +400,7 @@ Całość rozdzielona jest na trzy foldery:
   \texttt{daemon} - Posiada wszystkie pliki źródłowe składające się na program demona oraz plik \texttt{Makefile} pozwalający go zbudować.  Tutaj znajduje się również przykładowy plik \texttt{server.conf} przedstawiający sposób konfiguracji programu.
 \end{itemize}
 
-Dodatkowo w głównym katalogu znajduje się plik \texttt{README.md} napisany w formacie Markdown \footnote{http://daringfireball.net/projects/markdown/} dający potencjalnym użytkownikom podstawowe informacje na temat kompilacji oraz użytkowania oprogramowania.
+Dodatkowo w głównym katalogu znajduje się plik \texttt{README.md} napisany w formacie Markdown\footnote{http://daringfireball.net/projects/markdown/} dający potencjalnym użytkownikom podstawowe informacje na temat kompilacji oraz użytkowania oprogramowania.
 
 \subsubsection{Kod modułu jądra}
 
@@ -483,7 +483,7 @@ Kluczowymi zmiennymi są \texttt{obj-m} oraz \texttt{netdev-objs}. Zmienna \text
 
 Zmienna \texttt{ccflags-y} pozwala programiście na przekazanie dodatkowych parametrów, które mają być użyte przez GCC, domyślny kompilator jądra, podczas budowania modułu. W skład tej zmiennej wchodzą inne zmienne w celu ułatwienia organizacji. W przypadku zmiennej WARN dodawany jest szereg opcji zwiększających czułość kompilatora na niezgodności ze standardem języka C w celu wyłapania jakichkolwiek potencjalnych problemów. Zmienna \texttt{NOWARN} pozbywa się ostrzeżeń na temat nie użytych funkcji.
 
-Dodatkowo przy pomocy zmiennej INCLUDE i zawartej w niej opcji \texttt{-I} włączany jest katalog \texttt{include}, który znajduje się poniżej katalogów z kodem modułu oraz demona zawiera przede wszystkim plik nagłówkowy protocol.h definiujący szereg stałych wartości niezbędnych do prawidłowej komunikacji po gniazdach Netlink jak i TCP/IP. Bez niego nie dało by się skompilować ani modułu jądra ani demona.
+Dodatkowo przy pomocy zmiennej INCLUDE i zawartej w niej opcji \texttt{-I} włączany jest katalog \texttt{include}, który znajduje się poniżej katalogów z kodem modułu oraz demona zawiera przede wszystkim plik nagłówkowy protocol.h definiujący szereg stałych wartości niezbędnych do prawidłowej komunikacji po gniazdach Netlink jak i TCP/IP\@. Bez niego nie dało by się skompilować ani modułu jądra ani demona.
 
 Z tak zdefiniowanym plikiem \texttt{Makefile} znajdującym się w folderze z kodem modułu jądra programista musi jedynie wywołać program make. Wynikiem tej operacji będzie pełen zestaw plików binarnych z rozszerzeniem \texttt{.o} oraz plik końcowy modułu \texttt{netdev.ko}, który jest gotowy do załadowania do pamięci systemu i rozpoczęcia pracy.
 
@@ -577,7 +577,7 @@ Po powrocie z tej funkcji jądro kończy wywoływanie kodu modułu i zwalnia zar
 
 Każdy dobry programista wie, iż by zrozumieć czyjś kod należy zacząć od kluczowych struktur danych lub klas w przypadku programowania obiektowego. Oto trzy najważniejsze struktury stworzone na potrzeby modułu netdev oraz jedna struktura udostępniana w kodzie jądra w celu ich organizacji.
 
-\subsubsection{Struktura netdev\_data}
+\subsubsection{Struktura \texttt{\large{netdev\_data}}}
 
 Struktura \texttt{netdev\_data}(ang. ``Network Device Data'') przedstawia pojedyncze urządzenie obsługiwane przez moduł jądra bez względu na to czy jest to urządzenie-atrap czy rzeczywiste urządzenie.  Jest ona zdefiniowana w pliku \texttt{netdevmgm.h} i wygląda następująco:
 
@@ -605,7 +605,7 @@ Dwie zmienne \texttt{atomic\_t} pozwalają na zmianę wartości w sposób atomow
 
 Element \texttt{nllock} typu \texttt{spinlock\_t} istnieje na potrzeby synchronizacji wysyłania wiadomości Netlink. Bez niego mogło by się zdarzać, iż potwierdzenie wysyłane przez funkcję \texttt{netlink\_recv}, która jest odpowiedzialna za odbieranie wszystkich wiadomości netlink, zostało by w rzeczywistości wysłane po wiadomości wygenerowanej przez jakąś operacje plikową na urządzeniu z uwagi na to, iż za każdym razem tworzą własny wątek jądra. Jako że blokada w każdym przypadku trwa najwyżej kilkaset nanosekund więc używanie semafora mogło by wyraźnie spowolnić wysyłanie wiadomości Netlink. Co prawda spinlocki są raczej rzadko używanymi narzędziami synchronizacji gdyż są bardzo podatne na błędy programistów, w tym przypadku jest to idealne rozwiązanie.
 
-Strukturę \texttt{cdev} omówiliśmy w rozdziale ``\hyperref[urządzenia-znakowe]{Urządzenia znakowe}'' więc jej funkcja powinna być jasna. Używana jest ona do stworzenia atrapy urządzenia znakowego przypisanego do danego obiektu \texttt{netdev\_data}. Zawiera w sobie również atrybut typu \texttt{dev\_t}, który przechowuje niezwykle ważne wcześniej wytłumaczone numery dur oraz moll. Struktura ta jest używana jedynie gdy dany obiekt \texttt{netdev\_data} jest urządzeniem-atrapą. Tak samo znana już struktura \texttt{device} opisana w rozdziale ``\hyperref[model-sterowników-urządzeń-w-jądrze-linux]{Model sterowników urządzeń w jądrze Linux}'' reprezentuje plik w wirtualnym systemie plików \texttt{/dev} i używana jest do jego stworzenia jak i usunięcia. Tak samo jak atrybut \texttt{cdev} ten używany jest tylko z urządzeniem-atrapą.
+Strukturę \texttt{cdev} omówiliśmy w rozdziale "\nameref{chardevs}" więc jej funkcja powinna być jasna. Używana jest ona do stworzenia atrapy urządzenia znakowego przypisanego do danego obiektu \texttt{netdev\_data}. Zawiera w sobie również atrybut typu \texttt{dev\_t}, który przechowuje niezwykle ważne wcześniej wytłumaczone numery dur oraz moll. Struktura ta jest używana jedynie gdy dany obiekt \texttt{netdev\_data} jest urządzeniem-atrapą. Tak samo znana już struktura \texttt{device} opisana w rozdziale "\nameref{linuxdrivermodel}" reprezentuje plik w wirtualnym systemie plików \texttt{/dev} i używana jest do jego stworzenia jak i usunięcia. Tak samo jak atrybut \texttt{cdev} ten używany jest tylko z urządzeniem-atrapą.
 
 Struktura \texttt{hlist\_node} jest niezbędna aby obiekty typu \texttt{netdev\_data} dało się przechowywać w ogólnej implementacji tablicy haszującej jądra o nazwie \texttt{hashtable} znajdującej się w \texttt{include/linux/hashtable.h}. Struktura ta zawiera w sobie wszystkie informacje niezbędne do prawidłowego działania tablicy i używana jest na przykład gdy programista chce usunąć dany obiekt z tablicy. Struktura danych \texttt{hashtable} zostanie opisana w większym detalu w dalszych rozdziałach jako że gra dość kluczową rolę w module \texttt{netdev}.
 
@@ -615,7 +615,7 @@ Następny jest atrybut \texttt{queue\_pool} typu \texttt{kmem\_cache}.  Przedsta
 
 Ostatnim elementem jest tablica haszująca, która będzie przechowywać referencje do obiektów typu \texttt{struct fo\_access} reprezentujące pojedynczy proces otwierający urządzenie-atrapę na potrzeby pracy z nim.  Jako że obiekty te są identyfikowane przez numery identyfikacyjne procesów(PID), które je stworzyły ich szybkie wyszukiwanie po tej właśnie wartości było kluczowe dla sprawnego działania modułu. Z tego powodu została użyta tablica haszująca.
 
-\subsubsection{Struktura fo\_access}
+\subsubsection{Struktura \texttt{\large{fo\_access}}}
 
 Jako że jeden plik urządzenia-atrapy może być otwarty przez wiele procesów jednocześnie sterownik netdev musi zdawać sobie sprawę z tego faktu i przechowywać niezbędne informacje w celu obsłużenia danych procesów w indywidualny sposób. Z tego powodu istnieje struktura \texttt{fo\_access}(ang. ``File Operation Access''), która reprezentuje pojedynczy dostęp do urządzenia-atrapy. Zdefiniowana jest w pliku \texttt{kernel/fo\_access.h}:
 
@@ -632,7 +632,7 @@ struct fo_access {
 
 Struktura \texttt{fo\_access} musi być jakoś identyfikowana. Jako że jest ona ekskluzywnie połączona z procesem, który rozpoczął operacje na pliku urządzenia to identyfikator danego procesu(PID) idealnie się do tego nadaje ponieważ musi być unikalny w środowisku danego systemu.  Zmienna \texttt{access\_id} przechowuje ten identyfikator. Następny jest wskaźnik na strukturę \texttt{netdev\_data}, który zapewnia łatwy dostęp do obiektu odpowiedzialnego za dane urządzenie.
 
-Kolejna struktura używana jest jedynie przez urządzenie-atrapę. Jak było już powiedziane w rozdziale ``\hyperref[model-vfs]{Model VFS}'' struktura \texttt{file} reprezentuje plik otwarty przez pojedynczy proces i istnieje on tak długo jak dany plik jest otwarty przez dany proces. Tak samo struktura \texttt{fo\_access} istnieje tak długo jak dany proces korzysta z pliku urządzenia-atrapy i zostanie usunięty gdy dany proces wywoła operację \texttt{release} na pliku urządzenia.
+Kolejna struktura używana jest jedynie przez urządzenie-atrapę. Jak było już powiedziane w rozdziale \nameref{vfs} struktura \texttt{file} reprezentuje plik otwarty przez pojedynczy proces i istnieje on tak długo jak dany plik jest otwarty przez dany proces. Tak samo struktura \texttt{fo\_access} istnieje tak długo jak dany proces korzysta z pliku urządzenia-atrapy i zostanie usunięty gdy dany proces wywoła operację \texttt{release} na pliku urządzenia.
 
 Kolejka FIFO \texttt{fo\_queue} typu reprezentowana przez strukturę \texttt{kfifo} przeznaczona jest na obiekty typu \texttt{fo\_req} odpowiedzialne za pojedynczą operację plikową. Gdy moduł otrzyma odpowiedź na konkretna operację plikową używając identyfikatora procesu korzystającego z danego urządzenia odnajduje odpowiedni obiekt \texttt{fo\_access} a następnie na jego podstawie wydobywa odpowiedni obiekt operacji \texttt{fo\_req} z kolejki \texttt{fo\_queue}.
 
@@ -640,7 +640,7 @@ Jako że tak samo jak \texttt{netdev\_data} obiekty \texttt{fo\_access} mogą by
 
 Na samym końcu jest obiekt typu \texttt{hlist\_node} o nazwie \texttt{hnode} pozwalający na umieszczanie obiektów \texttt{fo\_access} w tablicy haszującej \texttt{hashtable} z kluczem w postaci wartości atrybutu \texttt{access\_id} w celu łatwego wydobywania właściwego obiektu na podstawie identyfikatora procesu.
 
-\subsubsection{Struktura fo\_req}
+\subsubsection{Struktura \texttt{\large{fo\_req}}}
 
 Następną strukturą, która pracuje jeszcze bliżej przestrzeni użytkownika niż \texttt{fo\_access} jest struktura \texttt{fo\_req}(ang. ``File Operation Request'') i reprezentuje ona pojedynczą operację plikową wykonaną na dowolnym pliku dowolnego urządzenia-atrapy obsługiwanego przez sterownik \texttt{netdev}. Jest ona podstawą do procesu serializacji danych na potrzeby wysłania ich do procesu demona.  Przechowywana jest w kolejce FIFO w atrybucie \texttt{fo\_queue} obiektu \texttt{fo\_access} odpowiedzialnego za proces, który wywołał daną operację plikową. Istnieć będzie aż do momentu kiedy odpowiedź na daną operację dotrze do sterownika i operacja plikowa zwróci kontrolę razem z wynikiem operacji do procesu, który ją wywołał.
 
@@ -685,7 +685,7 @@ Korzystając z tego mechanizmu jedynym zasobem jaki jest używany przez wszystki
 
 \subsubsection{Struktury argumentów operacji plikowych}
 
-Jak już to było przedstawione w rozdziale ``\hyperref[model-vfs]{Model VFS}'' każda operacja plikowa zdefiniowana w strukturze \texttt{file\_operations} posiada własny zestaw unikalnych argumentów jakie przyjmuje oraz wartość jaką zwraca po jej zakończeniu. Z tego powodu potrzebny jest jakiś mechanizm, który ujednolici sposób przechowywania oraz przekazywania tych argumentów oraz wartości zwrotnej.
+Jak już to było przedstawione w rozdziale "\nameref{vfs}" każda operacja plikowa zdefiniowana w strukturze \texttt{file\_operations} posiada własny zestaw unikalnych argumentów jakie przyjmuje oraz wartość jaką zwraca po jej zakończeniu. Z tego powodu potrzebny jest jakiś mechanizm, który ujednolici sposób przechowywania oraz przekazywania tych argumentów oraz wartości zwrotnej.
 
 Za to odpowiedzialne są struktury zdefiniowane w pliku nagłówkowym \texttt{kernel/fo\_struct.h}. Po jednej dla każdej operacji plikowej.  Struktury te są wypełniane przez funkcje operacji plikowych zdefiniowane w pliku \texttt{kernel/fo\_send.h} i następnie przekazywane jako wskaźnik typu \texttt{void} do funkcji \texttt{fo\_send()} z pliku \texttt{kernel/fo\_comm.c} wraz z wielkością danej struktury w celu zawarcia jej w obiekcie \texttt{fo\_req} i przesłania do serwera, który może rzeczywiście wykonać daną operację.
 
@@ -714,7 +714,7 @@ Struktury dla wszystkich pozostałych operacji plikowy zostały stworzone w anal
 
 \subsubsection{Tablica haszująca}
 
-Dwie kluczowe struktury, które zostały już przedstawione, \texttt{netdev\_data} oraz \texttt{fo\_access} są rozróżniane przy pomocy identyfikatora procesu, do którego są przywiązane. Powoduje to problem przechowywania tych obiektów w taki sposób aby odnalezienie ich po ich identyfikatorach było jak najszybsze. Możliwe struktury danych, które mogły by rozwiązać ten problem to różnego rodzaju drzewa takie jak B-Drzewa, L-Drzewa lub drzewa AVL. Jednak w tym przypadku kluczowy jest jak najkrótszy dostęp do danego obiektu bez potrzeby przechodzenia przez głębokie drzewa. Dlatego podjęta została decyzja by użyć tablicy haszującej.
+Dwie kluczowe struktury, które zostały już przedstawione, \texttt{netdev\_data} oraz \texttt{fo\_access} są rozróżniane przy pomocy identyfikatora procesu, do którego są przywiązane. Powoduje to problem przechowywania tych obiektów w taki sposób aby odnalezienie ich po ich identyfikatorach było jak najszybsze. Możliwe struktury danych, które mogły by rozwiązać ten problem to różnego rodzaju drzewa takie jak B-Drzewa, L-Drzewa lub drzewa AVL\@. Jednak w tym przypadku kluczowy jest jak najkrótszy dostęp do danego obiektu bez potrzeby przechodzenia przez głębokie drzewa. Dlatego podjęta została decyzja by użyć tablicy haszującej.
 
 Oczywiście jądro Linux posiada własną uogólniona implementacje tablicy haszującej znajdującą się w pliku \texttt{include/linux/hashtable.h}.  Kluczową strukturą, która umożliwia korzystanie z tablicy haszującej jest struktura \texttt{hlist\_node} zdefiniowana w pliku \texttt{include/linux/types.h} reprezentująca pojedynczy element tablicy. Każda struktura, która ma być przechowywana w tablicy hashtable musi posiadać taki atrybut.
 
@@ -758,7 +758,7 @@ Główne operacje ilustrujące działanie tych tablic są zdefiniowane w pliku \
   \texttt{int ndmgm\_end(void);} - Wywoływana jest podczas usuwania modułu \texttt{netdev} z systemu. Przechodzi po wszystkich istniejących urządzeniach i zatrzymuje wszystkie oczekujące operacje a następnie usuwa dane urządzenie.
 \end{itemize}
 
-Pierwsze dwie funkcje są absolutnie kluczowe w procesie odbierania wiadomości Netlink od procesu demona. Ich wykorzystanie zostanie przedstawione w rozdziale ``\hyperref[odbieranie-operacji]{Odbieranie operacji}''.
+Pierwsze dwie funkcje są absolutnie kluczowe w procesie odbierania wiadomości Netlink od procesu demona. Ich wykorzystanie zostanie przedstawione w rozdziale "\nameref{msgrecv}".
 
 \subsection{Wielowątkowość oraz wywłaszczanie}
 
@@ -805,7 +805,7 @@ Główny powód użycia metod opakowujących wynika z potrzeby debugowania czyli
 debug("dev: %15s, from: %pS", nddata->devname, __builtin_return_address(0));
 \end{verbatim}
 
-Dzięki użyciu specjalnej funkcji wbudowanej, którą udostępnia kompilator GCC\ref{returnaddr} możliwe jest zdobycie nazwy i adresu funkcji, która jest poprzednia na stosie wywołania. Innymi słowy funkcji, która wywołała właśnie wykonywana funkcję. Ułatwia to znacznie zlokalizowanie problemów z nieoprawnym liczeniem referencji lub referencji zajmowanych ale nie zwalnianych I jest jednym z wielu technik, z których programiści C mogą korzystać w celu wyłapania błędów w kodzie.
+Dzięki użyciu specjalnej funkcji wbudowanej, którą udostępnia kompilator GCC~\ref{returnaddr} możliwe jest zdobycie nazwy i adresu funkcji, która jest poprzednia na stosie wywołania. Innymi słowy funkcji, która wywołała właśnie wykonywana funkcję. Ułatwia to znacznie zlokalizowanie problemów z nieoprawnym liczeniem referencji lub referencji zajmowanych ale nie zwalnianych I jest jednym z wielu technik, z których programiści C mogą korzystać w celu wyłapania błędów w kodzie.
 
 \subsubsection{Semafory odczytu/zapisu}
 
@@ -824,7 +824,7 @@ void up_read(struct rw_semaphore *sem);
 void up_write(struct rw_semaphore *sem);
 \end{verbatim}
 
-Funkcje zaczynające się od \texttt{down\_...} blokują dany semafor a funkcje zaczynające się od \texttt{up\_...} zwalniają go. W zależności od tego jakiego rodzaju operację będzie wykonywał kod zabezpieczony przy pomocy danych funkcji \texttt{down} oraz \texttt{up} należy wybrać rodzaj blokowania \texttt{read} lub \texttt{write}. Normalnie funkcje blokujące semafor blokują dany proces do momentu aż dany semafor zostanie zwolniony. Istnieją jednak wersje z dopiskiem \texttt{\_trylock}, które nie są blokujące i natychmiast zwracają \texttt{0} gdy semafor jest zablokowany i \texttt{1} gdy jest wolny.
+Funkcje zaczynające się od \texttt{down\_\ldots} blokują dany semafor a funkcje zaczynające się od \texttt{up\_\ldots} zwalniają go. W zależności od tego jakiego rodzaju operację będzie wykonywał kod zabezpieczony przy pomocy danych funkcji \texttt{down} oraz \texttt{up} należy wybrać rodzaj blokowania \texttt{read} lub \texttt{write}. Normalnie funkcje blokujące semafor blokują dany proces do momentu aż dany semafor zostanie zwolniony. Istnieją jednak wersje z dopiskiem \texttt{\_trylock}, które nie są blokujące i natychmiast zwracają \texttt{0} gdy semafor jest zablokowany i \texttt{1} gdy jest wolny.
 
 Prawie wszystkie funkcje operujące na obiektach \texttt{netdev\_data} i \texttt{fo\_access} używają któregoś z tych typów blokowania semaforów w celu zabezpieczenia przed niespójnością danych. Dzięki użyciu semaforów odczytu/zapisu wpływ tych zabezpieczeń na wydajność modułu jest minimalny.
 
@@ -862,8 +862,9 @@ Dokładniejszy opis wykorzystania spinlocka pojawi się w następnym rozdziale p
 We wcześniejszych rozdziałach dokonany został wybór metody komunikacji modułu \texttt{netdev} z procesem demona w przestrzeni użytkownika.  Gniazda Netlink okazały się najlepszą metodą biorąc pod uwagę wymagania tego projektu. Jest to jednak dość złożona metoda komunikacji, która z powodu swojej bezpołączeniowej natury wymaga pewnego poziomu kontroli przepływu danych po obu stronach komunikacji. Dokładny opis zastosowanych technik znajduje się w kolejnych trzech podrozdziałach.  Przedstawione zostaną detale implementacji komunikacji od strony modułu jądra jako że komunikacja po stronie programu demona prawie niczym się nie różni od normalnej komunikacji sieciowej za pośrednictwem gniazd TCP czy UDP.
 
 \subsubsection{Tworzenie gniazda}
+\label{sockcreate}
 
-Przestrzeń jądra nie posiada ujednoliconych metod tworzenia gniazd z rodziny BSD takich jakie dostępne są w przestrzeni użytkownika z racji iż nie należy wykonywać takich połączeń w kodzie jądra. Powody zostały dokładnie opisane w rozdziale ``\hyperref[model-oprogramowania]{Model oprogramowania}''.
+Przestrzeń jądra nie posiada ujednoliconych metod tworzenia gniazd z rodziny BSD takich jakie dostępne są w przestrzeni użytkownika z racji iż nie należy wykonywać takich połączeń w kodzie jądra. Powody zostały dokładnie opisane w rozdziale "\nameref{softmodel}".
 
 Ponieważ nie ma jasnej metody tworzenia gniazd na potrzeby komunikacji sieciowej stworzona została specjalna funkcja na potrzeby tworzenia gniazda Netlink. Zdefiniowana jest ona w pliku \texttt{include/linux/netlink.h} i przyjmuje jako jeden z argumentów strukturę \texttt{netlink\_kernel\_cfg} stworzoną specjalnie na potrzeby tego procesu.
 
@@ -895,11 +896,12 @@ int netlink_init(void)
 
 Najważniejszym atrybutem struktury \texttt{netlink\_kernel\_cfg} jest \texttt{input} będące wskaźnikiem na funkcję która odbiera strukturę \texttt{sk\_buff} jako jedyny argument. W naszym przypadku jest to funkcja \texttt{netlink\_recv()}. Jądro wywoła tą funkcje w nowym wątku dla każdej wiadomości Netlink jak dotrze do otworzonego gwiazda opisanego przez deskryptor pliku zapisany w zmiennej \texttt{nl\_sk}.
 
-Struktura \texttt{sk\_buff} jest podstawową strukturą używaną do przekazywania danych w implementacji wszystkich metod komunikacji sieciowych w jądrze. Jest to bardzo rozległa struktura i zrozumienie jej działania oraz dokładne jej opisanie wymagało by znacznej ilości czasu.  Wykracza to poza zakres tej pracy. Zainteresowani mogą poszerzyć swoją wiedzę na ten temat czytając rozdział ``Network Drivers'' z książki {[}Linux Device Drivers{]}{[}b02{]}.
+Struktura \texttt{sk\_buff} jest podstawową strukturą używaną do przekazywania danych w implementacji wszystkich metod komunikacji sieciowych w jądrze. Jest to bardzo rozległa struktura i zrozumienie jej działania oraz dokładne jej opisanie wymagało by znacznej ilości czasu.  Wykracza to poza zakres tej pracy. Zainteresowani mogą poszerzyć swoją wiedzę na ten temat czytając rozdział "Network Drivers" z książki Linux Device Drivers\ref{ldd}.
 
 Pozostałe atrybuty definiują, iż wiadomości przesyłane przy pomocy tego gniazda nie będą wysyłane do grup przy pomocy technologii multicast, oraz że gniazdo to nie będzie używać żadnych dodatkowych opcji, które istnieją głównie na specyficzne potrzeby modułów obsługujących routing oraz zaporę ogniową w jądrze.
 
 \subsubsection{Budowa wiadomości}
+\label{msgbuild}
 
 Każda wiadomość Netlink zaczyna się od nagłówka zdefiniowanego przez przedstawioną wcześniej strukturę \texttt{nlmsghdr}:
 
@@ -915,7 +917,7 @@ struct nlmsghdr {
 
 Na długość wiadomości netlink składa się suma długości czterech elementów. Nagłówka, czyli 16 bajtów, wypełnienia (ang. padding), którego wielkość różni się w zależności od wielkości strony pamięci w systemie, ładunek(ang. payload) wiadomości, którego długość może osiągnąć nawet 213 Kilobajtów, oraz na sam koniec drugie wypełnienie wyrównujące wiadomość względem kolejnej w pamięci.
 
-Wartość 213 kilobajtów została określona na podstawie wielu testów wykonanych podczas rozwoju tego projektu. Nagłówek \texttt{include/linux/netlink.h} sugeruje maksymalną wielkość wiadomości Netlink przy pomocy stałej NLMSG\_GOODSIZE. Jego wartość na systemie używanym do prowadzenia testów wynosiła 4096 bajtów. Jest to oczywiście bardzo mała wartość i dzielenie wszystkich danych wysyłanych lub odbieranych przez gniazda Netlink na tak małe części wpłynęło by katastroficznie na wydajność oprogramowania. Z tego powodu podjęta została decyzja by ograniczyć wielkość wiadomości Netlink przy pomocy stałej NETDEV\_MESSAGE\_LIMIT do 213 kilobajtów.
+Wartość 213 kilobajtów została określona na podstawie wielu testów wykonanych podczas rozwoju tego projektu. Nagłówek \texttt{include/linux/netlink.h} sugeruje maksymalną wielkość wiadomości Netlink przy pomocy stałej \texttt{NLMSG\_GOODSIZE}. Jego wartość na systemie używanym do prowadzenia testów wynosiła 4096 bajtów. Jest to oczywiście bardzo mała wartość i dzielenie wszystkich danych wysyłanych lub odbieranych przez gniazda Netlink na tak małe części wpłynęło by katastroficznie na wydajność oprogramowania. Z tego powodu podjęta została decyzja by ograniczyć wielkość wiadomości Netlink przy pomocy stałej NETDEV\_MESSAGE\_LIMIT do 213 kilobajtów.
 
 Moduł Netlink udostępnia znaczną ilość makr oraz funkcji ułatwiających budowanie, wypełnianie, odczytywanie oraz wysyłanie wiadomości Netlink.  Oto kilka użytych w kodzie modułu \texttt{netdev}:
 
@@ -935,11 +937,12 @@ Moduł Netlink udostępnia znaczną ilość makr oraz funkcji ułatwiających bu
   \texttt{NLMSG\_SPACE(bufflen)} - Zwraca ilość pamięci jaka była by potrzebna na bufor, w którym ma się zmieścić cała wiadomość Netlink wraz z ładunkiem o wielkości \texttt{bufflen}.
 \end{itemize}
 
-Pełną listę funkcji i makr można znaleźć w plikach \texttt{include/net/netlink.h}, \texttt{include/linux/netlink.h} oraz \texttt{include/uapi/linux/netlink.h}. Ponadto moduł Netlink pozwala nawet na dokładne zdefiniowanie swojego protokołu komunikacji i następnie korzystania z szeregu funkcji zaczynających się od \texttt{nla\_...} i znanych jako ``Netlink Attributes Interface'', które znacznie ułatwiają manipulowaniem atrybutami składającymi się a ładunek wiadomości Netlink.
+Pełną listę funkcji i makr można znaleźć w plikach \texttt{include/net/netlink.h}, \texttt{include/linux/netlink.h} oraz \texttt{include/uapi/linux/netlink.h}. Ponadto moduł Netlink pozwala nawet na dokładne zdefiniowanie swojego protokołu komunikacji i następnie korzystania z szeregu funkcji zaczynających się od \texttt{nla\_\ldots} i znanych jako "Netlink Attributes Interface", które znacznie ułatwiają manipulowaniem atrybutami składającymi się a ładunek wiadomości Netlink.
 
 W przypadku tego projektu pojęta została jednak decyzja by pominąć interfejs Netlink do budowania ładunków wiadomości na rzecz stworzenia własnego znacznie prostszego protokołu komunikacji. Decyzja ta miał a bezpośredni wpływ na zmniejszenie kosztu związanego z opakowywaniem operacji plikowych w wiadomości Netlink i ograniczyło opóźnienia spowodowane tym procesem.
 
 \subsubsection{Odbieranie wiadomości}
+\label{msgrecv}
 
 Za odbieranie wszystkich wiadomości Netlink w module jądra odpowiedzialna jest funkcja \texttt{netlink\_recv()}, która przekazana została jako atrybut \texttt{input} struktury \texttt{netlink\_kernel\_cfg} do funkcji \texttt{netlink\_kernel\_create()}. Ma ona następującą deklaracje:
 
@@ -967,9 +970,10 @@ struct netdev_data *nddata = ndmgm_find(pid);
 
 Funkcja \texttt{netlink\_recv()} wykonuje bardzo podobny proces w celu wybrania w jaki sposób dana wiadomość musi być obsłużona. Jest ona również odpowiedzialna za odesłanie potwierdzenia odebrania wiadomości do procesu demona jeżeli ustawił on wartość \texttt{nlh-\textgreater{}nlmsg\_flags} na \texttt{NLM\_F\_ACK}.  Odesłanie potwierdzenia jest również wyjątkowo proste. Z użyciem tej samej struktury \texttt{sk\_buff} jaka została odebrana oraz znajdującego się w niej nagłówka \texttt{nlmsghdr} wywoływana jest funkcja \texttt{netlink\_ack(skb, nlh, err)} gdzie \texttt{err} definiuje kod błędu jaki ma dane potwierdzenie zwrócić. Wartość \texttt{0} jak zwykle oznacza sukces.
 
-Sposób obsłużenia operacji plikowych zawartych w wiadomościach Netlink zostanie opisany w rozdziale ``\hyperref[odbieranie-operacji]{Odbieranie operacji}''.
+Sposób obsłużenia operacji plikowych zawartych w wiadomościach Netlink zostanie opisany w rozdziale \nameref{msgsend}.
 
 \subsubsection{Wysyłanie wiadomości}
+\label{msgsend}
 
 Wysyłanie wiadomości Netlink również nie jest bardzo skomplikowane. Po pierwsze należy zarezerwować bufor sieciowy \texttt{sk\_buff} o wystarczającej wielkości by zmieściła się w nim cała wiadomość:
 
@@ -1003,10 +1007,12 @@ Funkcja \texttt{nlmsg\_unicast()} dodatkowo własnoręcznie zwalnia pamięć prz
 Oczywiście w rzeczywistym kodzie modułu \texttt{netdev} każda z tych operacji musi zostać zabezpieczona poprzez dokładne weryfikowanie wartości zwracanych przez użyte funkcje by wyłapać jakiekolwiek błędy.  Jest to oczywiście mało prawdopodobne ale prawie każda z wymienionych tutaj operacji mogła by zakończyć się niepowodzeniem i zwrócić nieużywalną wartość lub wskaźnik o wartości \texttt{NULL}.
 
 \subsection{Operacje plikowe}
+\label{foops}
 
-Główną funkcją tego projektu jest oczywiście przesyłanie operacji plikowych wykonanych na urządzeniu-atrapie do maszyny z rzeczywistym urządzeniem, wykonanie jej tam z takimi samymi argumentami i zwrócenie wyniku przez urządzenie-atrapę z powrotem do procesu, który zainicjował operację. Przedstawiony już został przykład struktury z rodziny \texttt{s\_fo\_...} przechowującej argumenty operacji oraz struktura \texttt{fo\_req} reprezentująca pojedyncze żądanie operacji plikowej.  Teraz należy opisać proces wysyłania, odbierania oraz wykonywania tych operacji.
+Główną funkcją tego projektu jest oczywiście przesyłanie operacji plikowych wykonanych na urządzeniu-atrapie do maszyny z rzeczywistym urządzeniem, wykonanie jej tam z takimi samymi argumentami i zwrócenie wyniku przez urządzenie-atrapę z powrotem do procesu, który zainicjował operację. Przedstawiony już został przykład struktury z rodziny \texttt{s\_fo\_\ldots} przechowującej argumenty operacji oraz struktura \texttt{fo\_req} reprezentująca pojedyncze żądanie operacji plikowej.  Teraz należy opisać proces wysyłania, odbierania oraz wykonywania tych operacji.
 
 \subsubsection{Wysyłanie operacji}
+\label{fosend}
 
 Każda operacja plikowa wykonana na urządzeniu atrapie zaczyna swoje istnienie jako wywołanie jednej z funkcji ustawionej jako jeden z argumentów struktury \texttt{file\_operations} zdefiniowanej jako \texttt{nedev\_fops} w pliku \texttt{kenrel/fo.c}. Struktura ta jest przekazywana jako argument do \texttt{cdev\_init()} podczas inicjowania nowego urządzenia-atrapy w \texttt{ndmgm\_create\_dummy}.
 
@@ -1107,7 +1113,8 @@ wait_for_completion(&req->comp);
 
 Od tego momentu funkcja \texttt{fo\_send} śpi aż funkcja \texttt{fo\_recv} odbierze odpowiedź nan jej żądanie, wydobędzie odpowiednie \texttt{fo\_req} z kolejki \texttt{fo\_queue} i zwolni strukturę ukończenia \texttt{req-\textgreater{}comp} przy pomocy \texttt{complete()}.
 
-\hyperdef{}{odbieranie-operacji}{\subsubsection{Odbieranie operacji}\label{odbieranie-operacji}}
+\subsubsection{Odbieranie operacji}
+\label{forecv}
 
 Każde żądanie operacji plikowej jakie otrzyma wcześniej omówiona funkcja \texttt{netlink\_recv()} będzie opakowane w nagłówek Netlink z odpowiednio ustawionym atrybutem \texttt{nlh-\textgreater{}nlmsg\_type} na wartość pomiędzy \texttt{MSGT\_FO\_START} a \texttt{MSGT\_FO\_END}.  Tak zidentyfikowana operacja plikowa jest przekazywana do funkcji \texttt{fo\_recv()}:
 
@@ -1267,13 +1274,13 @@ Analogicznie wskaźniki do wszystkich innych operacji są dostępne pod \texttt{
 
 \subsection{Architektura demona}
 
-W rozdziale ``\hyperref[sposób-implementacji-programu-demona]{Sposób implementacji programu demona}'' podjęta została decyzja by rozdzielić jego funkcjonalność na dwie odrębne klasy procesów. Proces nasłuchujący(ang. Listener), oczekujący nowych połączeń i tworzący nowe procesy w celu ich obsłużenia, oraz procesy pośredniczące(and. Proxy), który będzie pełnił rolę serwera lub klienta.
+W rozdziale "\nameref{daemonimplementation}" podjęta została decyzja by rozdzielić jego funkcjonalność na dwie odrębne klasy procesów. Proces nasłuchujący(ang. Listener), oczekujący nowych połączeń i tworzący nowe procesy w celu ich obsłużenia, oraz procesy pośredniczące(and. Proxy), który będzie pełnił rolę serwera lub klienta.
 
 Następne dwa rozdziały opisują te dwa rodzaje procesów i ich działanie.
 
 \subsubsection{Proces nasłuchujący}
 
-Rola procesu nasłuchującego sprowadza się do tylko jednego zadania.  Otwiera on gniazdo TCP/IP na porcie zdefiniowanym przez \texttt{NETDEV\_SERVER\_PORT} lub otrzymany jako argument \texttt{-p} w konsoli i wchodzi w nieskończoną pętlę \texttt{while} oczekując na nowe połączenia przy pomocy funkcji blokującej \texttt{accept()}.
+Rola procesu nasłuchującego sprowadza się do tylko jednego zadania.  Otwiera on gniazdo TCP/IP\@ na porcie zdefiniowanym przez \texttt{NETDEV\_SERVER\_PORT} lub otrzymany jako argument \texttt{-p} w konsoli i wchodzi w nieskończoną pętlę \texttt{while} oczekując na nowe połączenia przy pomocy funkcji blokującej \texttt{accept()}.
 
 \begin{verbatim}
 while (1) {
@@ -1353,13 +1360,12 @@ Do obsługi typów \texttt{fd\_set} istnieją cztery makra:
   \texttt{FD\_CLR(int fd, fd\_set *fdset);} - Wyzerowanie bitu dla
   deskryptora \texttt{fd}.
 \item
-  \texttt{FD\_ISSET(int fd. fd\_set *fdset);} - Sprawdzenie czy bit dla
-  \texttt{fd} jest ustawiony.
+  \texttt{FD\_ISSET(int fd, fd\_set *fdset);} - Sprawdzenie czy bit dla \texttt{fd} jest ustawiony.
 \end{itemize}
 
 Argumenty typu \texttt{fd\_set} są argumentami-wynikami czyli po powrocie z funkcji \texttt{select()} przedstawiają one te deskryptory plików, które spowodowały powrót z funkcji. Oczywiście możliwy jest powrót bez gotowości któregokolwiek z deskryptorów spowodowany błędem lub otrzymanym sygnałem. Wartość \texttt{int} zwracana przez \texttt{select()} określa ilość gotowych deskryptorów. Gdy wartość ta wynosi \texttt{0} przekroczony został czas oczekiwania zdefiniowany przez \texttt{timeout}. Wartość \texttt{-1} oznacza błąd. Dokładny powód błędu można odczytać z wartości \texttt{errno}.
 
-Główna pętla w funkcji \texttt{proxy\_loop()} wykorzystuje \texttt{select()} w celu jednoczesnego obsłużenia gniazda Netlink połączonego z modułem jądra \texttt{netdev} oraz gniazda TCP/IP połączonego ze zdalną maszyną:
+Główna pętla w funkcji \texttt{proxy\_loop()} wykorzystuje \texttt{select()} w celu jednoczesnego obsłużenia gniazda Netlink połączonego z modułem jądra \texttt{netdev} oraz gniazda TCP/IP\@ połączonego ze zdalną maszyną:
 
 \begin{verbatim}
 int proxy_loop(struct proxy_dev *pdev)
