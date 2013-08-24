@@ -1,14 +1,15 @@
 \documentclass[10pt]{article}
+\usepackage[polish]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage{polski}
 \usepackage{hyperref}
+\usepackage{graphicx}
+\graphicspath{{./grafiki/}}
 
 % zmniejszenie czcionki verbatim
 \makeatletter
 \def\verbatim{\small\@verbatim \frenchspacing\@vobeyspaces \@xverbatim}
 \makeatother
-
-\begin{document}
 
 \begin{titlepage}
 
@@ -20,6 +21,7 @@
 
 \end{titlepage}
 
+\begin{document}
 \tableofcontents
 
 \newpage
@@ -119,6 +121,7 @@ Z punktu widzenia sterowników urządzeń najbardziej kluczowymi obiektami są i
 
 Struktura \texttt{file\_operations} jest kluczowym interfejsem który pozwala ukryć ogromną różnorodność urządzeń pod zestawem prostych operacji, z których każdy proces w przestrzeni użytkownika może skorzystać bez rozróżniania pomiędzy typami urządzeń. Struktura ta jest zdefiniowana razem z wcześniej wymienionymi strukturami w pliku \texttt{include/linux/fs.h} i wygląda następująco:
 
+\newpage
 \begin{verbatim}
 struct file_operations {
     struct module *owner;
@@ -310,7 +313,7 @@ Wirtualny system plików znajdujący się w katalogu \texttt{/sys} znany równie
 
 Metody komunikacji oparte na gniazdach BSD udostępniają znacznie bardziej przyjazny interfejs do komunikacji z przestrzenią jądra.  Bardziej prymitywną metodą z dwóch dostępnych jest używanie tak zwanych surowych gniazd typu \texttt{AF\_RAW} które pozwalają na przesyłanie struktur danych o stałym formacie oraz korzystania ze specjalnego wywołania systemowego ioctl które przyjmuje jako argument dwie wartości typu \texttt{long}, pierwszą definiującą typ komunikatu i drugą wartość samego komunikatu. Jest to nadal bardzo ograniczone jeżeli chodzi o możliwość modyfikowania i rozwijania metody komunikacji ale powala jako pierwsza metoda na przysyłanie dużych ilości danych czego nie można powiedzieć o metodach komunikacji opartych na wirtualnych systemach plików.
 
-Ostatnią do omówienia i coraz powszechniej używaną metodą jaką udostępnia jądro linux jest protokół Netlink oparty na gniazdach BSD.  Jest to bezpołączeniowy protokół komunikacji opierający się na datagramach przypominający UDP, który pozwala na transfer dużych ilości danych, zapewnia taki sam poziom przenośności jak każdy inny protokół sieciowy oraz pozwala na łatwe rozwijanie metod komunikacji w miarę rozwoju projektu. Kluczowym atrybutem protokołu Netlink jest stały format zapewniający jasny podział na wiadomości, które wyróżniają się własnym numerem sekwencyjnym, typem komunikatu, zmienną długością, numerem identyfikującym proces źródłowy oraz zestawem specjalnych flag.  Flagi obecne w każdym datagramie Netlink pozwalają na dodatkową implementacje niezawodności poprzez przesyłanie wiadomości potwierdzających otrzymanie przekazu pozbywając się tym sposobem ograniczeń wynikających z niepołączeniowej natury protokołu.
+Ostatnią do omówienia i coraz powszechniej używaną metodą jaką udostępnia jądro linux jest protokół Netlink oparty na gniazdach BSD\@.  Jest to bezpołączeniowy protokół komunikacji opierający się na datagramach przypominający UDP, który pozwala na transfer dużych ilości danych, zapewnia taki sam poziom przenośności jak każdy inny protokół sieciowy oraz pozwala na łatwe rozwijanie metod komunikacji w miarę rozwoju projektu. Kluczowym atrybutem protokołu Netlink jest stały format zapewniający jasny podział na wiadomości, które wyróżniają się własnym numerem sekwencyjnym, typem komunikatu, zmienną długością, numerem identyfikującym proces źródłowy oraz zestawem specjalnych flag.  Flagi obecne w każdym datagramie Netlink pozwalają na dodatkową implementacje niezawodności poprzez przesyłanie wiadomości potwierdzających otrzymanie przekazu pozbywając się tym sposobem ograniczeń wynikających z niepołączeniowej natury protokołu.
 
 Biorąc pod uwagę wszystkie możliwości protokołu Netlink jest on najlepszą opcją jeżeli chodzi o implementowanie sprawnej metody komunikacji, która pozwala na szybki transfer dowolnej ilości danych oraz łatwą identyfikacje poszczególnych wiadomości i ich typu. Aplikacje w przestrzeni użytkownika mogą korzystać z protokołu netlink tak samo jak robią to w przypadku innych protokołów sieciowych. Jedyną różnicą jest potrzeba wywołania funkcji \texttt{socket()} z rodziną gniazda ustawioną na \texttt{AF\_NETLINK} oraz typem protokołu na \texttt{SOCK\_RAW} i używaniem struktury \texttt{nlmsghdr} jako podstawy budowania każdego komunikatu przesyłanego przez gniazdo Netlink.
 
@@ -514,6 +517,7 @@ module_init(netdev_init);
 
 Bez wyznaczenia funkcji inicjującej moduł oraz funkcji zamykającej go jądro nie wiedziało by jak taki moduł uruchomić. Jest to absolutne minimum jaki musi wykonać każda implementacja jakiegokolwiek modułu jądra Linux.
 
+\newpage
 Funkcja inicjująca moduł \texttt{netdev} wykonuje kilka podstawowych czynności niezbędny do rozpoczęcia pracy. Rezerwuje numery dur oraz moll, klasę urządzeń jakie będzie obsługiwał i inicjuje wszystkie struktury niezbędne do normalnego działania modułu. Oto kod funkcji \texttt{netdev\_init()}:
 
 \begin{verbatim}
@@ -559,6 +563,7 @@ fail:
 }
 \end{verbatim}
 
+\newpage
 Funkcja zamykająca sterownik jest znacznie prostsza. A przynajmniej wydaje się taka bez zaglądania do funkcji, które wywołuje:
 
 \begin{verbatim}
@@ -571,7 +576,7 @@ static void __exit netdev_exit(void) { /* Destructor */
 }
 \end{verbatim}
 
-Po powrocie z tej funkcji jądro kończy wywoływanie kodu modułu i zwalnia zarezerwowaną dla niego pamięć. W trakcie tej procedury jądro dodatkowo wykonuje szereg testów mających na celu upewnienie się że moduł nie zaśmiecił pamięci jądra w jakikolwiek sposób. Testy te mogą często wykryć niezwolnione semafory, lub wciąż istniejące zablokowane wątki jądra. Jest to oczywiście sytuacja, która nie powinna się zdarzać podczas normalnej pracy stabilnego modułu jądra ale informacja taka jest bardzo przydatna dla programistów.  
+Po powrocie z tej funkcji jądro kończy wywoływanie kodu modułu i zwalnia zarezerwowaną dla niego pamięć. W trakcie tej procedury jądro dodatkowo wykonuje szereg testów mających na celu upewnienie się że moduł nie zaśmiecił pamięci jądra w jakikolwiek sposób. Testy te mogą często wykryć niezwolnione semafory, lub wciąż istniejące zablokowane wątki jądra. Jest to oczywiście sytuacja, która nie powinna się zdarzać podczas normalnej pracy stabilnego modułu jądra ale informacja taka jest bardzo przydatna dla programistów.
 \subsection{Kluczowe struktury danych}
 \label{mainstructs}
 
@@ -609,7 +614,7 @@ Strukturę \texttt{cdev} omówiliśmy w rozdziale "\nameref{chardevs}" więc jej
 
 Struktura \texttt{hlist\_node} jest niezbędna aby obiekty typu \texttt{netdev\_data} dało się przechowywać w ogólnej implementacji tablicy haszującej jądra o nazwie \texttt{hashtable} znajdującej się w \texttt{include/linux/hashtable.h}. Struktura ta zawiera w sobie wszystkie informacje niezbędne do prawidłowego działania tablicy i używana jest na przykład gdy programista chce usunąć dany obiekt z tablicy. Struktura danych \texttt{hashtable} zostanie opisana w większym detalu w dalszych rozdziałach jako że gra dość kluczową rolę w module \texttt{netdev}.
 
-Zmienna \texttt{sem} typu \texttt{struct rw\_semaphore} to semafor odczytu i zapisu. Obiekty \texttt{netdev\_data} są odczytywane i modyfikowane przez wiele wątków jednocześnie. Z tego powodu niezbędne jest aby zabezpieczyć dostęp do tej struktury danych przy pomocy semafora. W tym przypadku został użyty specyficzny rodzaj semafora, który rozróżnia pomiędzy operacjami odczytu oraz zapisu. Ponieważ obiekty \texttt{netdev\_data} są częściej odczytywane raczej niż modyfikowane użycie tego typu semafora znacznie zmniejsza czas oczekiwania dla wielu wątków, które chciały by się dostać do danych w nich zawartych bez ich modyfikowania.  
+Zmienna \texttt{sem} typu \texttt{struct rw\_semaphore} to semafor odczytu i zapisu. Obiekty \texttt{netdev\_data} są odczytywane i modyfikowane przez wiele wątków jednocześnie. Z tego powodu niezbędne jest aby zabezpieczyć dostęp do tej struktury danych przy pomocy semafora. W tym przypadku został użyty specyficzny rodzaj semafora, który rozróżnia pomiędzy operacjami odczytu oraz zapisu. Ponieważ obiekty \texttt{netdev\_data} są częściej odczytywane raczej niż modyfikowane użycie tego typu semafora znacznie zmniejsza czas oczekiwania dla wielu wątków, które chciały by się dostać do danych w nich zawartych bez ich modyfikowania.
 
 Następny jest atrybut \texttt{queue\_pool} typu \texttt{kmem\_cache}.  Przedstawia on pulę pamięci zarezerwowaną specjalnie na potrzeby konkretnych obiektów. W tym przypadku są to obiekty typu \texttt{struct fo\_req} reprezentujący jedno żądanie wykonania operacji plikowej na urządzeniu. Z uwagi na to że sterownik netdev będzie tworzył i niszczył bardzo wiele obiektów tego typu z racji ilości operacji plikowych jakie różne procesy będą wykonywać zarezerwowanie zawczasu odpowiedniej puli tego typu obiektów potrafi znacznie przyspieszyć ich tworzenie oraz oszczędzić dużo pracy z czyszczeniem i przenoszeniem zwolnionej pamięci jądru.
 
@@ -1235,6 +1240,7 @@ Używanie tablic wskaźników do funkcji jest rzadko używanym i często pomijan
 
 Kluczowym krokiem jest wykonanie danej operacji. W przypadku wiadomości typu \texttt{MSGT\_FO\_OPEN} będzie to funkcja \texttt{ndfo\_recv\_open()}:
 
+\newpage
 \begin{verbatim}
 int ndfo_recv_open(struct fo_access *acc, struct fo_req *req) {
     struct s_fo_open *args = req->args;
@@ -1411,6 +1417,22 @@ Głównym powodem implementacji tego projektu było udostępnianie urządzeń zn
 
 \subsection{Porównanie prędkości transmisji danych}
 
+Test
+
+\begin{figure}[h]
+    \caption{Przepustowość z /dev/netdev\_null do /dev/null}
+    \includegraphics[width=\linewidth]{speeddevnull}
+\end{figure}
+
+Test
+
+\begin{figure}[h]
+    \caption{Przepustowość z /dev/netdev\_fb0 do /dev/null}
+    \includegraphics[width=\linewidth]{speeddevfb0}
+\end{figure}
+
+Test Test
+
 \subsection{Porównanie opóźnień}
 
 \subsection{Identyfikacja wąskich gardeł}
@@ -1492,5 +1514,7 @@ Głównym powodem implementacji tego projektu było udostępnianie urządzeń zn
     2010.
 
 \end{thebibliography}
+
+\listoffigures
 
 \end{document}
