@@ -245,7 +245,7 @@ Struktura ta nie jest jednak tworzona i wypełniana przez programistę.  Jądro 
   \texttt{void cdev\_del(struct cdev *);} - Usuwa urządzenie z systemu oraz zmniejsza licznik referencji zawarty w k-obiekcie. W efekcie może to spowodować zwolnienie pamięci przeznaczonej dla struktury gdy licznik referencji osiągnie 0.
 \end{itemize}
 
-Funkcje te są zdeklarowane w pliku \texttt{include/linux/cdev.h} oraz zdefiniowane w pliku \texttt{fs/char\_dev\.c}. Poza wywołaniem funkcji \texttt{cdev\_alloc()}, \texttt{cdev\_init()} oraz \texttt{cdev\_add()} w odpowiedniej kolejności sterownik nie musi w żaden sposób operować na strukturze \texttt{cdev} aż do momentu, w którym gotowy jest usunąć urządzenie i wywołuje \texttt{cdev\_del()}. Poza tym struktura \texttt{cdev} pozostaje dostępna raczej jako repozytorium informacji o urządzeniu raczej niż aktywnie modyfikowany obiekt w trakcie działania urządzenia.
+Funkcje te są zdeklarowane w pliku \texttt{include/linux/cdev.h} oraz zdefiniowane w pliku \texttt{fs/char\_dev.c}. Poza wywołaniem funkcji \texttt{cdev\_alloc()}, \texttt{cdev\_init()} oraz \texttt{cdev\_add()} w odpowiedniej kolejności sterownik nie musi w żaden sposób operować na strukturze \texttt{cdev} aż do momentu, w którym gotowy jest usunąć urządzenie i wywołuje \texttt{cdev\_del()}. Poza tym struktura \texttt{cdev} pozostaje dostępna raczej jako repozytorium informacji o urządzeniu raczej niż aktywnie modyfikowany obiekt w trakcie działania urządzenia.
 
 W celu przechowywania dokładniejszych danych o naszym urządzeniu sterownik będzie musiał stworzyć własną wewnętrzną strukturę reprezentującą urządzenie. Zostanie to opisane w rozdziale "\nameref{mainstructs}".
 
@@ -401,7 +401,7 @@ Całość rozdzielona jest na trzy foldery:
   \texttt{kernel} - Tutaj znajduje się cały kod modułu jądra oraz plik
   \texttt{Makefile} definiujący proces kompilacji tego modułu.
 \item
-  \texttt{daemon} - Posiada wszystkie pliki źródłowe składające się na program demona oraz plik \texttt{Makefile} pozwalający go zbudować.  Tutaj znajduje się również przykładowy plik \texttt{server\.conf} przedstawiający sposób konfiguracji programu.
+  \texttt{daemon} - Posiada wszystkie pliki źródłowe składające się na program demona oraz plik \texttt{Makefile} pozwalający go zbudować.  Tutaj znajduje się również przykładowy plik \texttt{server.conf} przedstawiający sposób konfiguracji programu.
 \end{itemize}
 
 Dodatkowo w głównym katalogu znajduje się plik \texttt{README\.md} napisany w formacie Markdown\footnote{http://daringfireball.net/projects/markdown/} dający potencjalnym użytkownikom podstawowe informacje na temat kompilacji oraz użytkowania oprogramowania.
@@ -791,7 +791,7 @@ atomic_inc(v);   /* Inkrementacja.       */
 atomic_dec(v);   /* Dekrementacja.       */
 \end{verbatim}
 
-W celu uproszczenia korzystania z tych wartości stworzone zostały funkcje opakowujące w pliku \texttt{kernel/netdevmgm\.c}:
+W celu uproszczenia korzystania z tych wartości stworzone zostały funkcje opakowujące w pliku \texttt{kernel/netdevmgm.c}:
 
 \begin{itemize}
 \itemsep1pt\parskip0pt\parsep0pt
@@ -856,7 +856,7 @@ Do podstawowej obsługi pojedynczego spinlocka w środowisku nie wywołanym prze
   \texttt{void spin\_unlock(spinlock\_t *lock);} - Do zwolnienia blokady.
 \end{itemize}
 
-W kodzie modułu \texttt{netdev} istnieje tylko jeden przypadek, który wymaga u życia tego typu mechanizmu synchronizacji z racji tego jak krótko taka blokada musiała by działać. Znajduje się on w implementacji komunikacji Netlink w pliku \texttt{kernel/netlink\.c}. Spinlock przypisany do konkretnego obiektu \texttt{netdev\_data} gwarantuje kolejność wysyłanych wiadomości Netlink będzie prawidłowa. Użycie spinlocka w funkcji \texttt{netlink\_recv()} zapewnia, że po odebraniu wiadomości z przestrzeni użytkownika proces zdąży wysłać potwierdzenie odebrania wiadomości zanim którykolwiek z istniejących wątków modułu \texttt{netdev} wyśle jakąś operację plikową powodując w ten sposób błąd po stronie demona oczekującego wiadomości potwierdzającej.
+W kodzie modułu \texttt{netdev} istnieje tylko jeden przypadek, który wymaga u życia tego typu mechanizmu synchronizacji z racji tego jak krótko taka blokada musiała by działać. Znajduje się on w implementacji komunikacji Netlink w pliku \texttt{kernel/netlink.c}. Spinlock przypisany do konkretnego obiektu \texttt{netdev\_data} gwarantuje kolejność wysyłanych wiadomości Netlink będzie prawidłowa. Użycie spinlocka w funkcji \texttt{netlink\_recv()} zapewnia, że po odebraniu wiadomości z przestrzeni użytkownika proces zdąży wysłać potwierdzenie odebrania wiadomości zanim którykolwiek z istniejących wątków modułu \texttt{netdev} wyśle jakąś operację plikową powodując w ten sposób błąd po stronie demona oczekującego wiadomości potwierdzającej.
 
 Spinlocki poza dużym wpływem na wydajność systemu przy nieostrożnym ich wykorzystaniu posiadają te same wady wymienione dla semaforów. Również są podatne na nieskończone blokowanie w przypadku niezwolnienia blokady oraz na wzajemne blokowanie procesów przy użyciu dwóch lub więcej spinlocków. Raczej odradza się używania tej metody synchronizacji chyba, że programista jest absolutnie pewien osiągnięcia w ten sposób najlepszych wyników w danym przypadku.
 
@@ -1020,9 +1020,9 @@ Główną funkcją tego projektu jest oczywiście przesyłanie operacji plikowyc
 \subsubsection{Wysyłanie operacji}
 \label{fosend}
 
-Każda operacja plikowa wykonana na urządzeniu atrapie zaczyna swoje istnienie jako wywołanie jednej z funkcji ustawionej jako jeden z argumentów struktury \texttt{file\_operations} zdefiniowanej jako \texttt{nedev\_fops} w pliku \texttt{kenrel/fo\.c}. Struktura ta jest przekazywana jako argument do \texttt{cdev\_init()} podczas inicjowania nowego urządzenia-atrapy w \texttt{ndmgm\_create\_dummy}.
+Każda operacja plikowa wykonana na urządzeniu atrapie zaczyna swoje istnienie jako wywołanie jednej z funkcji ustawionej jako jeden z argumentów struktury \texttt{file\_operations} zdefiniowanej jako \texttt{nedev\_fops} w pliku \texttt{kenrel/fo.c}. Struktura ta jest przekazywana jako argument do \texttt{cdev\_init()} podczas inicjowania nowego urządzenia-atrapy w \texttt{ndmgm\_create\_dummy}.
 
-Wszystkie te operacje są zdefiniowane w pliku \texttt{kernel/fo\_send\.c}. Oto przykład operacji \texttt{open} używanej przez każdy proces, który chce rozpocząć pracę na danym pliku urządzenia:
+Wszystkie te operacje są zdefiniowane w pliku \texttt{kernel/fo\_send.c}. Oto przykład operacji \texttt{open} używanej przez każdy proces, który chce rozpocząć pracę na danym pliku urządzenia:
 
 \begin{verbatim}
 int ndfo_send_open(struct inode *inode, struct file *filp)
@@ -1068,7 +1068,7 @@ Warto zaznaczyć, że wskaźnik \texttt{current} jest specyficznym obiektem w j�
 
 Po stworzeniu obiektu \texttt{fo\_access} wskaźnik do niej jest zapisywany w specjalnym atrybucie struktury \texttt{file} o nazwie \texttt{private\_data} przeznaczonym na własny użytek przez sterowniki urządzeń. Dzięki temu gdy ten sam proces będzie wywoływał kolejne operacje plikowe nie będzie trzeba za każdym razem wyszukiwać wskaźnika do \texttt{netdev\_data} przy pomocy \texttt{ndmgm\_find()} co znacznie przyspieszy ich obsługiwanie.
 
-Ostatnim krokiem jest wysłanie żądania przy pomocy funkcji \texttt{fo\_send()} z pliku \texttt{kernel/fo\_comm\.c}:
+Ostatnim krokiem jest wysłanie żądania przy pomocy funkcji \texttt{fo\_send()} z pliku \texttt{kernel/fo\_comm.c}:
 
 \begin{verbatim}
 int fo_send(short msgtype, struct fo_access *acc, void *args,
@@ -1103,7 +1103,7 @@ Po czym przygotowuje dane żądanie do wysłania przez jego serializacje do bufo
 buffer = fo_serialize(req, &bufflen);
 \end{verbatim}
 
-Ostatecznie zdobywa nowy numer sekwencyjny dla danej wiadomości z żądaniem i wysyła je przy pomocy funkcji opakowującej \texttt{neltink\_send()} z pliku \texttt{kernel/netlink\.c}:
+Ostatecznie zdobywa nowy numer sekwencyjny dla danej wiadomości z żądaniem i wysyła je przy pomocy funkcji opakowującej \texttt{neltink\_send()} z pliku \texttt{kernel/netlink.c}:
 
 \begin{verbatim}
 req->seq = ndmgm_incseq(acc->nddata);
@@ -1229,7 +1229,7 @@ skbtmp = netlink_pack_skb(nlh, buff, bufflen);
 netlink_send_skb(acc->nddata, skb);
 \end{verbatim}
 
-Tutaj kluczową strukturą jest \texttt{netdev\_recv\_fops} zdefiniowana z pliku \texttt{kernel/fo\_comm\.c}. Jest to tablica wskaźników do funkcji wykonujących żądania operacji plikowych na rzeczywistym urządzeniu. Jej deklaracja wygląda następująco:
+Tutaj kluczową strukturą jest \texttt{netdev\_recv\_fops} zdefiniowana z pliku \texttt{kernel/fo\_comm.c}. Jest to tablica wskaźników do funkcji wykonujących żądania operacji plikowych na rzeczywistym urządzeniu. Jej deklaracja wygląda następująco:
 
 \begin{verbatim}
 int (*netdev_recv_fops[])(struct fo_access *, struct fo_req*);
@@ -1452,38 +1452,92 @@ Od razu widoczna jest bezpośrednia zależność pomiędzy wielkością użytego
 
 Zaczynając od wielkości 64 Kilobajtów wzrost wydajności transmisji zaczyna maleć a różnica pomiędzy buforami o wielkości 128 KB i 200 KB jest już nieznaczna. Oczywiście większość programów nie korzysta z buforów tak małych jak 2 czy 4 KB\@. Dla większości programów w środowisku GNU/Linux domyślna wielkość bufora odczytu to 64 KB co daje optymalną wydajność.
 
-W przypadku zapisywania danych bufor jest zazwyczaj przystosowany do ilości jaka jest zapisywana. Jeżeli jednak ilość danych wykracza poza pojedyńcze wykonanie operacji \texttt{write()} to w tym przypadku również wielkość bufora zazwyczaj wynosi 64 KB\@. Zastanawiająca jest jednak różnica pomiędzy wydajnością operacji odczytu a operacją zapisu.
+W przypadku zapisywania danych bufor jest zazwyczaj przystosowany do ilości jaka jest zapisywana. Jeżeli jednak ilość danych wykracza poza pojedyncze wykonanie operacji \texttt{write()} to w tym przypadku również wielkość bufora zazwyczaj wynosi 64 KB\@. Zastanawiająca jest jednak różnica pomiędzy wydajnością operacji odczytu a operacją zapisu.
 
-Kolejny test ma na celu porównanie wydajności odczytu z rzeczywistego urządzenia znakowego istniejącego w systemie w porównaniu do dostępu zdalnego poprzez oprogramowanie netdev. Doskonale nadającym się do tego zastosowania jest urządzenie bufora ramki \texttt{/dev/fb0}. Jest to urządzenie znakowe, które udostępnia abstrakcjny interfejs do urządzenia graficznego dostepnego w systemie\footnote{\url{http://www.tldp.org/HOWTO/Framebuffer-HOWTO/}} i jest podstawą działania konsoli dostępnej w systemach GNU/Linux tuż po załadowaniu systemu. Urządzenie to doskonale nadaje się do porównywania prędkości odczytu ponieważ udostępnia ono za każdym otwarciem tylko jedną ramkę obrazu o wielkości 50 kilobajtów i zawsze udostępnia ją z taką samą prędkością która średnio wynosi około 14.55 megabajtów na sekunde. Będzie ona dobrym punktem odniesienia dla wydajności jaką osiągnie urządzenie-atrapa.
+Kolejny test ma na celu porównanie wydajności odczytu z rzeczywistego urządzenia znakowego istniejącego w systemie w porównaniu do dostępu zdalnego poprzez oprogramowanie netdev. Doskonale nadającym się do tego zastosowania jest urządzenie bufora ramki \texttt{/dev/fb0}. Jest to urządzenie znakowe, które udostępnia abstrakcyjny interfejs do urządzenia graficznego dostępnego w systemie\footnote{\url{http://www.tldp.org/HOWTO/Framebuffer-HOWTO/}} i jest podstawą działania konsoli dostępnej w systemach GNU/Linux tuż po załadowaniu systemu. Urządzenie to doskonale nadaje się do porównywania prędkości odczytu ponieważ udostępnia ono za każdym otwarciem tylko jedną ramkę obrazu o wielkości 50 kilobajtów i zawsze udostępnia ją z taką samą prędkością która średnio wynosi około 14.55 megabajtów na sekundę. Będzie ona dobrym punktem odniesienia dla wydajności jaką osiągnie urządzenie-atrapa.
 
 \begin{figure}[H]
     \caption{Przepustowość odczytu z \texttt{/dev/netdev\_fb0} do \texttt{/dev/null}}
     \includegraphics[width=\linewidth]{speeddevfb0}
 \end{figure}
 
-Ponownie widoczny jest ten sam trend zwiększającej się wydajności w miarę zwiększania wielkości bufora odczytu. Ponownie optymalna prędkośc osiągana jest przy buforze o wielkości 64 kilobajtów i różnice stają się coraz mnej istotne w przypadku wielkości 128 oraz 200 kilobajtów. Urządzenie-atrapa osiąga 72.7\% prędkości rzczywistego urządzenia dla 64 kilobajtów oraz odpowiednio 75.3\% i 79.2\% dla 128 i 200 kilobajtów. Jest to zadowalający wynik biorąc pod uwagę drogę jaką musi pokonać każdy odczytany bufor z danymi.
+Ponownie widoczny jest ten sam trend zwiększającej się wydajności w miarę zwiększania wielkości bufora odczytu. Ponownie optymalna prędkość osiągana jest przy buforze o wielkości 64 kilobajtów i różnice stają się coraz mniej istotne w przypadku wielkości 128 oraz 200 kilobajtów. Urządzenie-atrapa osiąga 72.7\% prędkości rzeczywistego urządzenia dla 64 kilobajtów oraz odpowiednio 75.3\% i 79.2\% dla 128 i 200 kilobajtów. Jest to zadowalający wynik biorąc pod uwagę drogę jaką musi pokonać każdy odczytany bufor z danymi.
 
 \subsection{Porównanie opóźnień}
 
-Test
+W celu porównaniu opóźnień w wykonaniu operacji plikowych pomiędzy rzeczywistym urządzeniem a urządzeniem-atrapą potrzeby jest bardzo dokładny pomiar czasu w systemie. Pomiar taki można wykonać przy pomocy funkcji:
 
-\subsection{Identyfikacja wąskich gardeł}
+\begin{verbatim}
+int clock_gettime(clockid_t clk_id, struct timespec *tp);
+\end{verbatim}
 
-\subsection{Możliwe poprawki w architekturze}
+Jest ona częścią standardowej biblioteki \texttt{time.h} i przyjmuje jako argument strukturę \texttt{timespec}, której atrybut \texttt{tv\_nsec} wyznacza obecny czas w systemie w nanosekundach. Taki poziom dokładności jest wystarczający by skutecznie mierzyć małe różnice pomiędzy czasem wykonania poszczególnych operacji plikowych. W tym celu niezbędne jest dwukrotne zmierzenie czasu systemowego, raz przed wykonaniem operacji, i raz po jej zakończeniu. Następnie wystarczy odjąć czas uruchomienia komendy w nanosekundach od czasu zakończenia by otrzymać czas wykonania. Poniższy kod przedstawia taką procedurę:
 
-\section{Podsumowanie}
+\begin{verbatim}
+clock_gettime(CLOCK_MONOTONIC, &tstart);
+open(filename, 0);
+clock_gettime(CLOCK_MONOTONIC, &tend);
+printf("Czas wykonania operacji: %ld\n", tend.tv_nsec - tstart.tv_nsec);
+\end{verbatim}
+
+Używając tej metody został napisany program \texttt{tests/delaytest.c}, który mierzy czas podstawowych operacji plikowych takich jak otwarcie pliku, odczyt przy pomocy różnej wielkości buforów oraz zamknięcie pliku. Przy użyciu tego programu wykonane zostały pomiary trzech rodzajów urządzeń w celu określenia średnich opóźnień w wykonywaniu operacji zdalnie na urządzeniach-atrapach. Urządzenia przetestowane to: \texttt{/dev/zero}, \texttt{/dev/urandom} oraz \texttt{/dev/fb0}. Wszystkie pomiary zostały wykonane dziesięć razy dla każdego urządzenia rzeczywistego i dziesięć razy dla każdego urządzenia-atrapy. Z osiągniętych wyników zostały wyciągnięte średnie a następnie wyliczone zostały różnice pomiędzy zdalnym a lokalnym dostępem do urządzenia. Oto otrzymane wyniki:
+
+\begin{figure}[H]
+    \caption{Różnica opóźnienia pomiędzy wykonaniem operacji lokalnie i przez urządzenie-atrapę}
+    \includegraphics[width=\linewidth]{delaydiffs}
+\end{figure}
+
+Opóźnienia oczywiście rosną w miarę jak zwiększa się wielkość bufora odczytu ale obie proste operacje \texttt{open()} i \texttt{close()} oraz operacje \texttt{read()} z buforem do 4 KB nie przekraczają jednej milisekundy czyli miliona nanosekund. Średnia opóźnienia dla tych operacji to 719840 nanosekund. Jest to dobrym wynikiem biorąc po uwagę że średnie opóźnienie dla tych samych operacji w sieciowym systemie plików SMB wynosi 782369 nanosekund.
+
+Kolejny graf obrazuje stosunek skali czasu wykonania operacji na urządzeniach-atrapach do wykonania ich na urządzeniach lokalnych. Wartości przedstawiają ile razy zwielokrotniony został czas wykonania operacji zdalnie w stosunku do wykonania jej lokalnie:
+
+\begin{figure}[H]
+    \caption{Wielokrotność opóźnienia na urządzeniach-atrapach w stosunku do lokalnych}
+    \includegraphics[width=\linewidth]{delayscale}
+\end{figure}
+
+Najbardziej skrajnym przypadkiem jest tutaj urządzenie \texttt{/dev/zero}, które reaguje z nieporównywalną prędkością na wszystkie zapytania z powodu jej bardzo prostej konstrukcji. Prawie wszystkie operacje wykonane na nim lokalnie trwają mniej niż 100000 nanosekund. Z tego powodu koszt operacji odczytu jest tak wyraźnie zwielokrotniony.
+
+Widać tutaj że opóźnienia są największe w przypadku otwierania oraz zamykania plików urządzenia z racji potrzeby stworzenia i wypełnienia lub bezpiecznego zwolnienia struktur takich jak \texttt{fo\_access}. Pozostałe operacje odczytu mają znacznie mniejszy koszt w postaci opóźnień. Zaczynając od 16 KB opóźnienie nie jest nawet dwukrotnie większe. Wskazuje to na dość wydajną implementacji obsługi operacji odczytu.
+
+\subsection{Identyfikacja wąskich gardeł i możliwe rozwiązania}
+
+Istnieją dwa potencjalne sposoby na zwiększenie prędkości działania oprogramowania netdev. Oba skupiają się na alokowaniu oraz kopiowaniu dużych buforów pamięci.
+
+W przypadku modułu jądra problemem jest fakt że operacje \texttt{ndfo\_send\_read} i \texttt{ndfo\_send\_write} alokują własne bufory na potrzeby odbieranych lub wysyłanych danych. Są to bufory pośredniczące zanim dane zostaną skopiowane z lub do bufora sieciowego \texttt{sk\_buff}. Proces ten jest niezbędny ponieważ adres bufora otrzymywanego z przestrzeni użytkownika jako argument tych funkcji jest z powodu sposobu w jaki jądro Linux zarządza pamięcią adresem wirtualnym przypisanym do danego kontekstu procesu i jest on bezużyteczny poza kontekstem wywołania danej operacji plikowej. Oznacza to że funkcja \texttt{fo\_complete} nie może skopiować danych, które otrzymała bezpośrednio do bufora użytkownika.
+
+Poprzez wyeliminowanie potrzeby alokowania tego bufora oraz jednej operacji kopiowania można by zauważalnie przyspieszyć operacje odczytu lub zapisu danych. Jeden z możliwych sposobów implementacji takiego rozwiązania jest użycie funkcji \texttt{vmap()} lub \texttt{kmap()}, które pozwalają na przemapowanie wirtualnego adresu pamięci z przestrzeni użytkownika na wirtualny adres z przestrzeni jądra wskazujący na rzeczywisty fizyczny adres pamięci, w której alokowany został dany bufor użytkownika. Pozwoliło by to przekazać bezpośredni adres do bufora użytkownika we wskaźniku \texttt{data} struktur \texttt{fo\_req}. Niestety trzeba się liczyć z faktem że jądro Linux rezerwuje sobie prawo do przenoszenia wirtualnych przestrzeni pamięci należących do procesów w trakcie działania systemu w celu jak najlepszego wykorzystania pamięci systemowej. Możliwe jest nawet że pamięć wirtualna danego procesu znalazła by się na partycji wymiany(ang. swap) na dysku. Oznacza to że adres otrzymany z funkcji \texttt{vmap()} lub \texttt{kmap()} mógł by stracić swoją ważność w trakcie jak moduł oczekuje na odpowiedź na dane żądanie wykonania operacji plikowej.
+
+Z pewnością istnieją inne możliwości ograniczenia ilości procesów kopiowania pomiędzy buforami. Wykorzystanie któregokolwiek z nich wpłynął by pozytywnie na czas i wydajność wykonywania operacji plikowych w przestrzeni jądra.
+
+Kolejnym miejscem, w którym dało by się poprawić wydajność jest proces demona. Tutaj znowu kluczową kwestią są bufory wykorzystane do odbierania oraz wysyłania wiadomości za pośrednictwem gniazd TCP oraz Neltink. W obecnej chwili bufory te są alokowane i zwalniane przy każdej odbieranej czy wysyłanej wiadomości. Poprzez implementację ponownego używania tego samego bufora alokowanego raz podczas rozpoczęcia obsługi danego urządzenia i zwalnianego gdy ta obsługa się kończy możliwe było by przyspieszenie przekazywania wiadomości pomiędzy oboma stronami transakcji.
+
+Poprawianie wydajności programów pisanych na tak niskim poziomie jest zawsze możliwe przy pomocy wymyślnych technik zarządzania pamięcią czy kolejnością operacji. Niestety jest to zazwyczaj możliwe kosztem prostoty kodu. Naprawdę wydajnie napisane programy w języku C są bardzo częste trudne w zrozumieniu i modyfikowaniu. Wiele technik polega na specyfikach implementacji różnych wywołań systemowych czy bibliotecznych. Stosowanie ich może często prowadzić do niestabilnego kodu.
+
+\section{Wnioski}
+
+Celem projektu było udostępnianie urządzeń znakowych ze zdalnych maszyn za pośrednictwem urządzenia-atrapy udającej rzeczywiste urządzenie. Cel ten został osiągnięty. Projekt implementuje szereg podstawowych operacji plikowych i pozwala udostępniać urządzenia znakowe bez względu na ich sposób działania czy sposób implementacji ich sterowników.
+
+Projekt ten nie był jednak łatwy w implementacji. Programowanie na poziomie jądra systemu jest pełne pułapek i niebezpieczeństw, którymi programista normalnych programów przestrzeni użytkownika nie musi się przejmować. Błędy programistyczne, które są raczej nieszkodliwe w przestrzeni użytkownika mogą mieć katastrofalne skutki w przestrzeni jądra. Każdy bajt zapisany pod nie tym adresem co trzeba i każdy wskaźnik odnoszący się do nie tej przestrzeni pamięci, którą miał na myśli programista może skutkować w dobrym przypadku paniką jądra, a w najgorszym fizycznym uszkodzeniem systemu.
+
+Fakt że możliwe jest testowanie modułów jądra w zamkniętym i odizolowanym środowisku jakim jest wirtualna maszyna jest ogromną pomocą dla programisty jądra. Nie jest to jednak panaceum. Kod jądra potrafi być bardzo wrażliwy na platformę na jakiej jest uruchamiany i modułu nie można nazwać stabilnym dopóty, dopóki nie zostanie on przetestowany na wielu różnych platformach. Z tego powodu autor nie uznaje swojego kodu za stabilny. Stabilność jego kodu na jego osobistych platformach testowych nie gwarantuje jego prawidłowego działania gdziekolwiek indziej.
+
+Jeżeli więc moduł ten miał by się stać oprogramowaniem użytkowym, kluczowym jest, aby został on udostępniony publicznie pod licencją GPL w celu odebrania możliwych, i najprawdopodobniej nieuniknionych zgłoszeń błędów przez potencjalnych użytkowników.
+
 \section{Dodatki}
 
 \begin{itemize}
 \itemsep1pt\parskip0pt\parsep0pt
 \item
-  Plik źródłowy \LaTeX z treścią pracy
+  Plik źródłowy \LaTeX  z treścią pracy
 \item
   Pliki graficzne diagramów oraz wykresów
 \item
-  Plik PDF wygenerowany na podstawie pliku LaTeX
+  Plik PDF wygenerowany na podstawie pliku \LaTeX
 \item
   Pełen kod źródłowy projektu w folderze \texttt{netdev}
+\item
+  Program użyty do testowania opóźnień w folderze \texttt{tests}
 \item
   Katalog \texttt{netdev/.git} zawierający cały opis historii rozwoju projektu
   zawarty w bazie danych systemu kontroli wersji Git
