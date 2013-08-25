@@ -13,15 +13,10 @@
 \makeatother
 
 \begin{titlepage}
-
-\title{Udostępnianie znakowych urządzeń fizycznych przez sieć w systemach GNU/Linux}
-
-\subtitle{Polsko-Japońska Wyższa Szkoła Technik Komputerowych}
-
-\author{Jakub Sokołowski}
-
-\date{Sierpień 2013}
-
+    \title{Udostępnianie znakowych urządzeń fizycznych przez sieć w systemach GNU/Linux}
+    \subtitle{Polsko-Japońska Wyższa Szkoła Technik Komputerowych}
+    \author{Jakub Sokołowski}
+    \date{Sierpień 2013}
 \maketitle
 
 \end{titlepage}
@@ -47,7 +42,7 @@ Projekt ten ilustruje wiele kluczowych modeli oraz standardów zdefiniowanych pr
 
 Sterownik jądra ma na celu stworzenie urządzenia-atrapy które będzie udawać w systemie rzeczywiste urządzenia fizyczne. Program serwerowy ma na celu odbieranie jakichkolwiek operacji wykonywanych na danym urządzeniu-atrapie i przekazanie ich do kolejnej instancji programu na zdalnej maszynie, na której znajduje się rzeczywiste urządzenie, które może odpowiedzieć na zapytania in przesłać wyniki z powrotem do urządzeniu-atrapy.
 
-Z powodu różnorodności funkcji jakie będzie wykonywał program z przestrzeni użytkownika oraz według tradycji systemów z rodziny Unix program ten będzie od teraz nazywany demonem. Dokładny podział funkcji jakie będzie wypełniał zostanie opisany w rozdziale~\ref{Sposób implementacji programu demona}.
+Z powodu różnorodności funkcji jakie będzie wykonywał program z przestrzeni użytkownika oraz według tradycji systemów z rodziny Unix program ten będzie od teraz nazywany demonem. Dokładny podział funkcji jakie będzie wypełniał zostanie opisany w rozdziale "\nameref{daemonimplementation}".
 
 \subsection{Język programistyczny}
 \label{language}
@@ -65,10 +60,6 @@ Wszystkie wywołania systemowe użyte w projekcie są częścią standardu POSIX
 
 Interfejs przez jaki potencjalny użytkownik będzie mógł korzystać z tego oprogramowania przyjmuje dwa podstawowe sposoby zarządzania oprogramowaniem w systemach z rodziny Unix czyli tekstowe pliki konfiguracyjne oraz argumenty przekazywane bezpośrednio do programu
 demona.
-
-\section{Organizacja pracy}
-
-%Podział pracy na podrozdziały
 
 \section{Teoria}
 \label{theory}
