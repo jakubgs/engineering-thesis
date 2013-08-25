@@ -279,25 +279,10 @@ Dodatkowym problemem jest zagrożenie bezpieczeństwa jądra. Pobieranie danych 
 
 Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy. Przede wszystkim moduł jądra odpowiedzialny za stronę sprzętową czyli tworzenie urządzenia atrapy i odbieranie operacji plikowych na nim wykonanych po stronie klienta i wykonywanie ich na rzeczywistym urządzeniu po stronie serwera. Drugim elementem będzie program przestrzeni użytkownika odpowiedzialny za wczytanie odpowiedniej konfiguracji, połączenie się z modułem jądra oraz zdalną maszyną i ustanowieniem połączenia pomiędzy oboma końcami transakcji. Dzięki takiemu modelowi wszystkie problemy związane z wczytywaniem konfiguracji, kontrolą modułu oraz bezpieczeństwem zostaną przeniesione do warstwy użytkownika co powinno znacznie uprościć kod modułu i przyspieszyć jego działanie oraz sprawić, że końcowy produkt będzie bardziej elastyczny w użytkowaniu i konfiguracji. Poniżej przedstawiony jest prosty diagram opisujący przykładowe połączenie pomiędzy urządzeniem fizycznym udostępniającym swoje zasoby na maszynie udostępniającej urządzenie a urządzeniem-atrapą udającym rzeczywiste urządzenie na maszynie klienckiej:
 
-\begin{verbatim}
-                        Fizyczne urządzenie
-                                |
-                            Moduł jądra
-                                |
-                                |- Połączenie Netlink
-                                |
-                              Demon
-                                |
-                                |- Połączenie TCP/IP
-                                |
-                              Klient
-                                |
-                                |- Połączenie Netlink
-                                |
-                            Moduł jądra
-                                |
-                        Urządzenie-atrapa
-\end{verbatim}
+\begin{figure}[H]
+    \caption{Model oprogramowania netdev}
+    \includegraphics[width=\linewidth]{softwaremodel}
+\end{figure}
 
 Przyjmując taki model organizacji rozszerza projekt o dodatkową warstwę komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika co w wyraźny sposób komplikuje proces komunikacji pomiędzy urządzeniem-atrapą a rzeczywistym fizycznym urządzeniem. Jest to jednak utrudnienie niezbędne biorąc pod uwagę polisy jakie rządzą rozwojem kodu jądra Linux. Jako że chcemy udostępniać urządzenia fizyczne za pośrednictwem tego oprogramowania kluczowa jest wysoka przepustowość w przesyłaniu dużych ilości danych i niezawodność, która zapewni, że żadna operacja na pliku nie zostanie pominięta podczas przesyłania. Dokładny opis wyboru metody komunikacji znajduje się w rozdziale "\nameref{userlandcomm}".
 
