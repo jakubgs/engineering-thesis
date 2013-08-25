@@ -280,13 +280,13 @@ Dodatkowym problemem jest zagrożenie bezpieczeństwa jądra. Pobieranie danych 
 Z uwagi na te obiekcje projekt musi zostać podzielony na dwa odrębne elementy. Przede wszystkim moduł jądra odpowiedzialny za stronę sprzętową czyli tworzenie urządzenia atrapy i odbieranie operacji plikowych na nim wykonanych po stronie klienta i wykonywanie ich na rzeczywistym urządzeniu po stronie serwera. Drugim elementem będzie program przestrzeni użytkownika odpowiedzialny za wczytanie odpowiedniej konfiguracji, połączenie się z modułem jądra oraz zdalną maszyną i ustanowieniem połączenia pomiędzy oboma końcami transakcji. Dzięki takiemu modelowi wszystkie problemy związane z wczytywaniem konfiguracji, kontrolą modułu oraz bezpieczeństwem zostaną przeniesione do warstwy użytkownika co powinno znacznie uprościć kod modułu i przyspieszyć jego działanie oraz sprawić, że końcowy produkt będzie bardziej elastyczny w użytkowaniu i konfiguracji. Poniżej przedstawiony jest prosty diagram opisujący przykładowe połączenie pomiędzy urządzeniem fizycznym udostępniającym swoje zasoby na maszynie udostępniającej urządzenie a urządzeniem-atrapą udającym rzeczywiste urządzenie na maszynie klienckiej:
 
 \begin{figure}[H]
-    \caption{Model oprogramowania netdev}
+    \caption{Model oprogramowania Netdev}
     \includegraphics[width=\linewidth]{softwaremodel}
 \end{figure}
 
-Przyjmując taki model organizacji rozszerza projekt o dodatkową warstwę komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika co w wyraźny sposób komplikuje proces komunikacji pomiędzy urządzeniem-atrapą a rzeczywistym fizycznym urządzeniem. Jest to jednak utrudnienie niezbędne biorąc pod uwagę polisy jakie rządzą rozwojem kodu jądra Linux. Jako że chcemy udostępniać urządzenia fizyczne za pośrednictwem tego oprogramowania kluczowa jest wysoka przepustowość w przesyłaniu dużych ilości danych i niezawodność, która zapewni, że żadna operacja na pliku nie zostanie pominięta podczas przesyłania. Dokładny opis wyboru metody komunikacji znajduje się w rozdziale "\nameref{userlandcomm}".
+Przyjmując taki model organizacji rozszerza projekt o dodatkową warstwę komunikacji pomiędzy przestrzenią jądra a przestrzenią użytkownika co w wyraźny sposób komplikuje proces komunikacji pomiędzy urządzeniem-atrapą a rzeczywistym fizycznym urządzeniem. Jest to jednak utrudnienie niezbędne biorąc pod uwagę polisy jakie rządzą rozwojem kodu jądra Linux. Jako że chcemy udostępniać urządzenia fizyczne za pośrednictwem tego oprogramowania kluczowa jest wysoka przepustowość w przesyłaniu dużych ilości danych i niezawodność, która zapewni, że żadna operacja na pliku nie zostanie pominięta podczas przesyłania. Dokładny opis wyboru metod komunikacji znajduje się w rozdziale "\nameref{userlandcomm}".
 
-Dodatkowo w celu zmniejszenia nakładu pracy kosztem małego zwiększenia złożoności kodu podjęta została decyzja aby zaimplementować jeden moduł jądra, który będzie odpowiedzialny za urządzenie atrapę po stronie klienta oraz rzeczywiste urządzenie po stronie serwera i jeden program przestrzeni użytkownika, który analogicznie będzie wypełniał rolę serwera oraz klienta jednocześnie. Powinno to znacznie zmniejszyć ilość linijek kodu niezbędnych do ukończenia tego projektu. Powinno to również uprości konfiguracje dla potencjalnych użytkowników z uwagi na prosty podział oprogramowania na moduł jądra oraz demona.
+Dodatkowo w celu zmniejszenia nakładu pracy kosztem małego zwiększenia złożoności kodu podjęta została decyzja aby zaimplementować jeden moduł jądra, który będzie odpowiedzialny za urządzenie atrapę po stronie klienta oraz rzeczywiste urządzenie po stronie serwera i jeden program przestrzeni użytkownika, który analogicznie będzie wypełniał rolę serwera oraz klienta jednocześnie. Powinno to znacznie zmniejszyć ilość linijek kodu niezbędnych do ukończenia tego projektu. Powinno to również uprości konfiguracje dla potencjalnych użytkowników z uwagi na prosty podział oprogramowania Netdev na moduł jądra oraz demona.
 
 \section{Decyzje projektowe}
 
@@ -386,8 +386,6 @@ Daje to nam dwie kategorie procesów:
 \item
   Proces pośredniczący(Proxy) - Działa w roli klienta lub serwera i przekazuje wiadomości z jądra do zdalnej maszyny i wiadomości ze zdalnej maszyny do jądra.
 \end{itemize}
-
-\subsection{Zabezpieczenia przed paniką jądra}
 
 \section{Implementacja}
 
