@@ -1,4 +1,4 @@
-\documentclass[10pt]{article}
+\documentclass[10pt]{scrartcl}
 \usepackage[polish]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage{polski}
@@ -14,10 +14,14 @@
 
 \begin{titlepage}
 
-%Polsko-Japońska Wyższa Szkoła Technik Komputerowych
 \title{Udostępnianie znakowych urządzeń fizycznych przez sieć w systemach GNU/Linux}
+
+\subtitle{Polsko-Japońska Wyższa Szkoła Technik Komputerowych}
+
 \author{Jakub Sokołowski}
+
 \date{Sierpień 2013}
+
 \maketitle
 
 \end{titlepage}
@@ -1506,7 +1510,7 @@ Istnieją dwa potencjalne sposoby na zwiększenie prędkości działania oprogra
 
 W przypadku modułu jądra problemem jest fakt że operacje \texttt{ndfo\_send\_read} i \texttt{ndfo\_send\_write} alokują własne bufory na potrzeby odbieranych lub wysyłanych danych. Są to bufory pośredniczące zanim dane zostaną skopiowane z lub do bufora sieciowego \texttt{sk\_buff}. Proces ten jest niezbędny ponieważ adres bufora otrzymywanego z przestrzeni użytkownika jako argument tych funkcji jest z powodu sposobu w jaki jądro Linux zarządza pamięcią adresem wirtualnym przypisanym do danego kontekstu procesu i jest on bezużyteczny poza kontekstem wywołania danej operacji plikowej. Oznacza to że funkcja \texttt{fo\_complete} nie może skopiować danych, które otrzymała bezpośrednio do bufora użytkownika.
 
-Poprzez wyeliminowanie potrzeby alokowania tego bufora oraz jednej operacji kopiowania można by zauważalnie przyspieszyć operacje odczytu lub zapisu danych. Jeden z możliwych sposobów implementacji takiego rozwiązania jest użycie funkcji \texttt{vmap()} lub \texttt{kmap()}, które pozwalają na przemapowanie wirtualnego adresu pamięci z przestrzeni użytkownika na wirtualny adres z przestrzeni jądra wskazujący na rzeczywisty fizyczny adres pamięci, w której alokowany został dany bufor użytkownika. Pozwoliło by to przekazać bezpośredni adres do bufora użytkownika we wskaźniku \texttt{data} struktur \texttt{fo\_req}. Niestety trzeba się liczyć z faktem że jądro Linux rezerwuje sobie prawo do przenoszenia wirtualnych przestrzeni pamięci należących do procesów w trakcie działania systemu w celu jak najlepszego wykorzystania pamięci systemowej. Możliwe jest nawet że pamięć wirtualna danego procesu znalazła by się na partycji wymiany(ang. swap) na dysku. Oznacza to że adres otrzymany z funkcji \texttt{vmap()} lub \texttt{kmap()} mógł by stracić swoją ważność w trakcie jak moduł oczekuje na odpowiedź na dane żądanie wykonania operacji plikowej.
+Poprzez wyeliminowanie potrzeby alokowania tego bufora oraz jednej operacji kopiowania można by zauważalnie przyspieszyć operacje odczytu lub zapisu danych. Jeden z możliwych sposobów implementacji takiego rozwiązania jest użycie funkcji \texttt{vmap()} lub \texttt{kmap()}, które pozwalają na przemapowanie wirtualnego adresu pamięci z przestrzeni użytkownika na wirtualny adres z przestrzeni jądra wskazujący na rzeczywisty fizyczny adres pamięci~\ref{kmap}, w której alokowany został dany bufor użytkownika. Pozwoliło by to przekazać bezpośredni adres do bufora użytkownika we wskaźniku \texttt{data} struktur \texttt{fo\_req}. Niestety trzeba się liczyć z faktem że jądro Linux rezerwuje sobie prawo do przenoszenia wirtualnych przestrzeni pamięci należących do procesów w trakcie działania systemu w celu jak najlepszego wykorzystania pamięci systemowej. Możliwe jest nawet że pamięć wirtualna danego procesu znalazła by się na partycji wymiany(ang. swap) na dysku. Oznacza to że adres otrzymany z funkcji \texttt{vmap()} lub \texttt{kmap()} mógł by stracić swoją ważność w trakcie jak moduł oczekuje na odpowiedź na dane żądanie wykonania operacji plikowej.
 
 Z pewnością istnieją inne możliwości ograniczenia ilości procesów kopiowania pomiędzy buforami. Wykorzystanie któregokolwiek z nich wpłynął by pozytywnie na czas i wydajność wykonywania operacji plikowych w przestrzeni jądra.
 
@@ -1518,11 +1522,13 @@ Poprawianie wydajności programów pisanych na tak niskim poziomie jest zawsze m
 
 Celem projektu było udostępnianie urządzeń znakowych ze zdalnych maszyn za pośrednictwem urządzenia-atrapy udającej rzeczywiste urządzenie. Cel ten został osiągnięty. Projekt implementuje szereg podstawowych operacji plikowych i pozwala udostępniać urządzenia znakowe bez względu na ich sposób działania czy sposób implementacji ich sterowników.
 
+Wydajność jaka została osiągnięta jest zadowalająca i pozwala na normalne użytkowanie urządzeń znakowych za pośrednictwem połączeń sieciowych.
+
 Projekt ten nie był jednak łatwy w implementacji. Programowanie na poziomie jądra systemu jest pełne pułapek i niebezpieczeństw, którymi programista normalnych programów przestrzeni użytkownika nie musi się przejmować. Błędy programistyczne, które są raczej nieszkodliwe w przestrzeni użytkownika mogą mieć katastrofalne skutki w przestrzeni jądra. Każdy bajt zapisany pod nie tym adresem co trzeba i każdy wskaźnik odnoszący się do nie tej przestrzeni pamięci, którą miał na myśli programista może skutkować w dobrym przypadku paniką jądra, a w najgorszym fizycznym uszkodzeniem systemu.
 
 Fakt że możliwe jest testowanie modułów jądra w zamkniętym i odizolowanym środowisku jakim jest wirtualna maszyna jest ogromną pomocą dla programisty jądra. Nie jest to jednak panaceum. Kod jądra potrafi być bardzo wrażliwy na platformę na jakiej jest uruchamiany i modułu nie można nazwać stabilnym dopóty, dopóki nie zostanie on przetestowany na wielu różnych platformach. Z tego powodu autor nie uznaje swojego kodu za stabilny. Stabilność jego kodu na jego osobistych platformach testowych nie gwarantuje jego prawidłowego działania gdziekolwiek indziej.
 
-Jeżeli więc moduł ten miał by się stać oprogramowaniem użytkowym, kluczowym jest, aby został on udostępniony publicznie pod licencją GPL w celu odebrania możliwych, i najprawdopodobniej nieuniknionych zgłoszeń błędów przez potencjalnych użytkowników.
+Jeżeli więc moduł ten miał by się stać oprogramowaniem użytkowym, kluczowym jest, aby został on udostępniony publicznie pod licencją GPL w celu odebrania możliwych, i najprawdopodobniej nieuniknionych, zgłoszeń błędów przez potencjalnych użytkowników.
 
 \section{Dodatki}
 
@@ -1560,6 +1566,11 @@ Jeżeli więc moduł ten miał by się stać oprogramowaniem użytkowym, kluczow
 \bibitem{netlinkchange}
     \url{http://www.spinics.net/lists/netfilter-devel/msg22338.html},
     Netlink Configuration Change.
+
+\bibitem{kmap}
+    \url{http://kneuro.net/linux-mm/index.php?file=kmap.html},
+    \textit{Mapping Arbitrary Pages into Kernel VM},
+    Joe Knapka.
 
 \bibitem{linuxkerneldevel}
     \textit{Linux Kernel - Przewodnik Programisty},
