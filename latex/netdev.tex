@@ -5,6 +5,7 @@
 \usepackage{hyperref}
 \usepackage{graphicx}
 \usepackage{float}
+\usepackage{fix-cm}
 \graphicspath{{./grafiki/}}
 
 % zmniejszenie czcionki verbatim
@@ -12,17 +13,43 @@
 \def\verbatim{\small\@verbatim \frenchspacing\@vobeyspaces \@xverbatim}
 \makeatother
 
+\begin{document}
 \begin{titlepage}
-    \title{Udostępnianie znakowych urządzeń fizycznych przez sieć w systemach GNU/Linux}
-    \subtitle{Polsko-Japońska Wyższa Szkoła Technik Komputerowych}
-    \author{Jakub Sokołowski}
-    \date{Sierpień 2013}
-\maketitle
+    \begin{center}
+        \includegraphics[width=\linewidth]{pjwstk}
 
+        \vspace*{1cm}
+        \begin{large}
+        \textbf{Wydział Informatyki}
+
+        \vspace*{2cm}
+        \textbf{Katedra Sieci Komputerowych}
+
+        \vspace*{0.5cm}
+        Programowanie Systemowe i Sieciowe
+
+        \vspace*{3cm}
+        \textbf{Jakub Sokołowski}
+
+        s5134
+
+        \vspace*{1cm}
+        \textbf{Udostępnianie znakowych urządzeń fizycznych przez sieć w systemach GNU/Linux}
+
+        \begin{flushright}
+            \vspace*{2cm}
+            Praca Inżynierska
+
+            Paulina Adamska
+        \end{flushright}
+
+        \vfill
+        Warszawa, Wrzesień, 2013
+        \end{large}
+    \end{center}
 \end{titlepage}
 
 \tableofcontents
-\begin{document}
 
 \newpage
 \section{Wstęp}
