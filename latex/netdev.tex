@@ -1,4 +1,4 @@
-\documentclass[10pt]{scrartcl}
+\documentclass[11pt]{scrartcl}
 \usepackage[polish]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage{polski}
@@ -6,7 +6,12 @@
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage{fix-cm}
+\usepackage[margin=3.5cm]{geometry}
 \graphicspath{{./grafiki/}}
+
+% zaczynaj każdy rozdział na nowejs stronie
+\let\stdsection\section
+\renewcommand\section{\newpage\stdsection}
 
 % zmniejszenie czcionki verbatim
 \makeatletter
@@ -28,7 +33,7 @@
         \vspace*{0.5cm}
         Programowanie Systemowe i Sieciowe
 
-        \vspace*{3cm}
+        \vspace*{2.5cm}
         \textbf{Jakub Sokołowski}
 
         s5134
@@ -552,9 +557,9 @@ module_init(netdev_init);
 
 Bez wyznaczenia funkcji inicjującej moduł oraz funkcji zamykającej go jądro nie wiedziało by jak taki moduł uruchomić. Jest to absolutne minimum jaki musi wykonać każda implementacja jakiegokolwiek modułu jądra Linux.
 
-\newpage
 Funkcja inicjująca moduł \texttt{netdev} wykonuje kilka podstawowych czynności niezbędnych do rozpoczęcia pracy. Rezerwuje numery dur oraz moll, klasę urządzeń jakie będzie obsługiwał i inicjuje wszystkie struktury niezbędne do normalnego działania modułu. Oto kod funkcji \texttt{netdev\_init()}:
 
+\newpage
 \begin{verbatim}
 static int __init netdev_init(void) {
     int err;
@@ -598,7 +603,6 @@ fail:
 }
 \end{verbatim}
 
-\newpage
 Funkcja zamykająca sterownik jest znacznie prostsza. A przynajmniej wydaje się taka bez zaglądania do funkcji, które wywołuje:
 
 \begin{verbatim}
@@ -817,6 +821,7 @@ W przypadku modułu \texttt{netdev} dwukrotnie użyty został typ \texttt{atomic
 
 Oczywiście operacji na wartościach atomowych nie można wykonywać tak jak na każdych innych zmiennych o typach całkowych. Należy korzystać z szeregu przygotowanych operacji, które gwarantują wykonanie danej operacji bez przerwania przez zarządce procesów jądra:
 
+\newpage
 \begin{verbatim}
 atomic_read(v);  /* Odczyt               */
 atomic_set(v,i); /* Ustawienie wartości. */
@@ -1084,15 +1089,11 @@ int ndfo_send_open(struct inode *inode, struct file *filp)
     filp->private_data = (void*)acc;
 
     /* wysłanie operacji do rzeczywistego urządzenia */
-    rvalue = fo_send(MSGT_FO_OPEN,
-                    filp->private_data,
-                    &args, sizeof(args),
-                    NULL, 0);
-
+    rvalue = fo_send(MSGT_FO_OPEN, filp->private_data,
+                     &args, sizeof(args), NULL, 0);
     if (rvalue < 0) {
         return rvalue;
     }
-    /* zwrócenie wyniku */
     return args.rvalue;
 }
 \end{verbatim}
@@ -1276,6 +1277,7 @@ Używanie tablic wskaźników do funkcji jest rzadko używanym i często pomijan
 
 Kluczowym krokiem jest wykonanie danej operacji. W przypadku wiadomości typu \texttt{MSGT\_FO\_OPEN} będzie to funkcja \texttt{ndfo\_recv\_open()}:
 
+\newpage
 \begin{verbatim}
 int ndfo_recv_open(struct fo_access *acc, struct fo_req *req) {
     struct s_fo_open *args = req->args;
