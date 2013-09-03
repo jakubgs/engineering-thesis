@@ -1,10 +1,11 @@
 \documentclass[11pt]{scrartcl}
 \usepackage[polish]{babel}
 \usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
 \usepackage{polski}
-\usepackage{hyperref}
 \usepackage{graphicx}
 \usepackage{float}
+\usepackage{hyperref}
 \usepackage{fix-cm}
 \usepackage[margin=3.5cm]{geometry}
 \graphicspath{{./grafiki/}}
@@ -58,7 +59,6 @@
 
 \tableofcontents
 
-\newpage
 \section{Wstęp}
 \label{abstract}
 
@@ -656,7 +656,7 @@ Strukturę \texttt{cdev} omówiliśmy w rozdziale ``\nameref{chardevs}'' więc j
 
 Struktura \texttt{hlist\_node} jest niezbędna aby obiekty typu \texttt{netdev\_data} dało się przechowywać w ogólnej implementacji tablicy haszującej jądra o nazwie \texttt{hashtable} znajdującej się w \texttt{include/linux/hashtable.h}. Struktura ta zawiera w sobie wszystkie informacje niezbędne do prawidłowego działania tablicy i używana jest na przykład gdy programista chce usunąć dany obiekt z tablicy. Struktura danych \texttt{hashtable} zostanie opisana w większym detalu w dalszych rozdziałach, jako że gra dość kluczową rolę w module \texttt{netdev}.
 
-Zmienna \texttt{sem} typu \texttt{struct rw\_semaphore} to semafor odczytu i zapisu. Obiekty \texttt{netdev\_data} są odczytywane i modyfikowane przez wiele wątków jednocześnie. Z tego powodu niezbędne jest aby zabezpieczyć dostęp do tej struktury danych przy pomocy semafora. W tym przypadku został użyty specyficzny rodzaj semafora, który rozróżnia pomiędzy operacjami odczytu oraz zapisu. Ponieważ obiekty \texttt{netdev\_data} są częściej odczytywane, raczej niż modyfikowane, użycie tego typu semafora znacznie zmniejsza czas oczekiwania dla wielu wątków, które chciały by się dostać do danych w nich zawartych bez ich modyfikowania.
+Zmienna \texttt{sem} typu \texttt{struct rw\_semaphore} to semafor odczytu i zapisu. Obiekty \texttt{netdev\_data} są odczytywane i modyfikowane przez wiele wątków jednocześnie. Z tego powodu niezbędne jest aby zabezpieczyć dostęp do tej struktury danych przy pomocy semafora. W tym przypadku został użyty specyficzny rodzaj semafora, który rozróżnia operacje odczytu oraz zapisu. Ponieważ obiekty \texttt{netdev\_data} są częściej odczytywane, raczej niż modyfikowane, użycie tego typu semafora znacznie zmniejsza czas oczekiwania dla wielu wątków, które chciały by się dostać do danych w nich zawartych bez ich modyfikowania.
 
 Następny jest atrybut \texttt{queue\_pool} typu \texttt{kmem\_cache}.  Przedstawia on pulę pamięci zarezerwowaną specjalnie na potrzeby konkretnych obiektów. W tym przypadku są to obiekty typu \texttt{struct fo\_req} reprezentujące jedno żądanie wykonania operacji plikowej na urządzeniu. Z uwagi na to że sterownik netdev będzie tworzył i niszczył bardzo wiele obiektów tego typu z racji ilości operacji plikowych jakie różne procesy będą wykonywać, zarezerwowanie zawczasu odpowiedniej puli tego typu obiektów potrafi znacznie przyspieszyć ich tworzenie oraz oszczędzić dużo pracy z czyszczeniem i przenoszeniem zwolnionej pamięci jądru.
 
@@ -916,7 +916,7 @@ Przestrzeń jądra nie posiada ujednoliconych metod tworzenia gniazd z rodziny B
 
 Ponieważ nie ma jasnej metody tworzenia gniazd na potrzeby komunikacji sieciowej stworzona do tego została specjalna funkcja tworzenia gniazda Netlink. Zdefiniowana jest ona w pliku \texttt{include/linux/netlink.h} i przyjmuje jako jeden z argumentów strukturę \texttt{netlink\_kernel\_cfg} stworzoną specjalnie dla i używana tylko trakcie tego procesu.
 
-Proces tworzenia gniazd Netlink został w jasny sposób zdefiniowany dość niedawno, dokładnie w wersji 3.8 jądra Linux. Dopiero od tej wersji została dodana struktura \texttt{netlink\_kernel\_cfg}. Zmiana to została wprowadzona w Czerwcu roku 2012~\cite{netlinkchange} i sprawiła, że jakiekolwiek opisy tworzenia gniazd Netlink dostępne w internecie lub książkach o programowaniu jądra Linux stały się nieaktualne. Dobrze to ilustruje wciąż zmieniającą się naturę standardów i interfejsów programistycznych istniejących w jądrze Linux.
+Proces tworzenia gniazd Netlink został w jasny sposób zdefiniowany dość niedawno, dokładnie w wersji 3.8 jądra Linux. Dopiero od tej wersji została dodana struktura \texttt{netlink\_kernel\_cfg}. Zmiana ta została wprowadzona w czerwcu roku 2012~\cite{netlinkchange} i sprawiła, że jakiekolwiek opisy tworzenia gniazd Netlink dostępne w internecie lub książkach o programowaniu jądra Linux stały się nieaktualne. Dobrze to ilustruje wciąż zmieniającą się naturę standardów i interfejsów programistycznych istniejących w jądrze Linux.
 
 Poniżej przedstawiona jest funkcja odpowiedzialna za inicjalizację gniazda netlink podczas uruchamiania modułu \texttt{netdev} przez funkcje \texttt{netdev\_init()}:
 
@@ -987,7 +987,7 @@ Moduł Netlink udostępnia znaczną ilość makr oraz funkcji ułatwiających bu
 
 Pełną listę funkcji i makr można znaleźć w plikach \texttt{include/net/netlink.h}, \newline\texttt{include/linux/netlink.h} oraz \texttt{include/uapi/linux/netlink.h}. Ponadto moduł Netlink pozwala nawet na dokładne zdefiniowanie swojego protokołu komunikacji i następnie korzystania z szeregu funkcji zaczynających się od \texttt{nla\_\ldots} i znanych jako ``Netlink Attributes Interface'', które znacznie ułatwiają manipulowaniem atrybutami składającymi się na ładunek wiadomości Netlink.
 
-W przypadku tego projektu pojęta została jednak decyzja by pominąć interfejs Netlink do budowania ładunków wiadomości na rzecz stworzenia własnego znacznie prostszego protokołu komunikacji. Decyzja ta miał a bezpośredni wpływ na zmniejszenie kosztu związanego z opakowywaniem operacji plikowych w wiadomości Netlink i ograniczyło opóźnienia spowodowane tym procesem.
+W przypadku tego projektu pojęta została jednak decyzja by pominąć interfejs Netlink do budowania ładunków wiadomości na rzecz stworzenia własnego znacznie prostszego protokołu komunikacji. Decyzja ta miała  bezpośredni wpływ na zmniejszenie kosztu związanego z opakowywaniem operacji plikowych w wiadomości Netlink i ograniczyło opóźnienia spowodowane tym procesem.
 
 \subsubsection{Odbieranie wiadomości}
 \label{msgrecv}
